@@ -1,0 +1,51 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --foreground: #171717;
+  --background: #f8f9fa;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --foreground: #ededed;
+    --background: #1a1a1a;
+  }
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: var(--font-space-grotesk), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+@layer components {
+  .risk-bar {
+    @apply h-2 bg-gray-200 rounded-full overflow-hidden;
+  }
+  
+  .risk-level {
+    @apply h-full rounded-full;
+  }
+  
+  .risk-low {
+    @apply bg-green-400;
+  }
+  
+  .risk-medium-low {
+    @apply bg-blue-400;
+  }
+  
+  .risk-medium {
+    @apply bg-yellow-400;
+  }
+  
+  .risk-medium-high {
+    @apply bg-orange-400;
+  }
+  
+  .risk-high {
+    @apply bg-red-400;
+  }
+}
