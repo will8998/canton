@@ -4,12 +4,15 @@ import { useState, useEffect } from 'react';
 import Navbar from '@/components/Navbar';
 import VaultCard from '@/components/VaultCard';
 import VaultFilters from '@/components/VaultFilters';
-import { vaults } from '@/data/vaults';
+import { vaults, Vault } from '@/data/vaults';
 
 export default function Home() {
-  const [filteredVaults, setFilteredVaults] = useState(vaults);
+  const [filteredVaults, setFilteredVaults] = useState<Vault[]>(vaults);
   const [totalAssets, setTotalAssets] = useState('125.5'); // Mock data
   const [isMobile, setIsMobile] = useState(true);
+  const [currentFilter, setCurrentFilter] = useState('All Providers');
+  const [currentSort, setCurrentSort] = useState('Target APY');
+  const [currentGeography, setCurrentGeography] = useState('All Regions');
 
   useEffect(() => {
     // Check if window is defined (client-side)
@@ -78,34 +81,46 @@ export default function Home() {
   };
 
   const handleFilterChange = (filterBy: string) => {
-    if (filterBy === 'All Providers') {
-      setFilteredVaults(vaults);
-    } else {
-      setFilteredVaults(vaults.filter(vault => vault.provider === filterBy));
-    }
+    setCurrentFilter(filterBy);
+    applyFilters(filterBy, currentSort, currentGeography);
   };
 
   const handleSortChange = (sortBy: string) => {
-    let sortedVaults = [...filteredVaults];
-    
+    setCurrentSort(sortBy);
+    applyFilters(currentFilter, sortBy, currentGeography);
+  };
+
+  const handleGeographyChange = (geography: string) => {
+    setCurrentGeography(geography);
+    applyFilters(currentFilter, currentSort, geography);
+  };
+
+  const applyFilters = (filterBy: string, sortBy: string, geography: string) => {
+    let filtered = [...vaults];
+
+    // Apply provider filter
+    if (filterBy !== 'All Providers') {
+      filtered = filtered.filter(vault => vault.provider === filterBy);
+    }
+
+    // Apply geography filter
+    if (geography !== 'All Regions') {
+      filtered = filtered.filter(vault => vault.geography === geography);
+    }
+
+    // Apply sorting
     if (sortBy === 'Target APY') {
-      sortedVaults.sort((a, b) => 
+      filtered.sort((a, b) => 
         parseInt(a.targetAPY) > parseInt(b.targetAPY) ? -1 : 1
       );
     } else if (sortBy === 'Risk Level') {
-      const riskOrder = {
-        'Low': 1,
-        'Medium-Low': 2,
-        'Medium': 3,
-        'Medium-High': 4,
-        'High': 5
-      };
-      sortedVaults.sort((a, b) => 
-        riskOrder[a.riskLevel] > riskOrder[b.riskLevel] ? 1 : -1
+      // Since we don't have risk level in our data, we'll sort by APY as a fallback
+      filtered.sort((a, b) => 
+        parseInt(a.targetAPY) > parseInt(b.targetAPY) ? -1 : 1
       );
     }
-    
-    setFilteredVaults(sortedVaults);
+
+    setFilteredVaults(filtered);
   };
 
   return (
@@ -120,7 +135,8 @@ export default function Home() {
         
         <VaultFilters 
           onFilterChange={handleFilterChange} 
-          onSortChange={handleSortChange} 
+          onSortChange={handleSortChange}
+          onGeographyChange={handleGeographyChange}
         />
         
         <div style={pageStyles.vaultGrid}>
@@ -131,7 +147,6 @@ export default function Home() {
               name={vault.name}
               provider={vault.provider}
               targetAPY={vault.targetAPY}
-              riskLevel={vault.riskLevel}
               lockPeriod={vault.lockPeriod}
               breakFee={vault.breakFee}
               minimumBTC={vault.minimumBTC}

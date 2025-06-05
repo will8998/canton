@@ -14,8 +14,6 @@ export default function Navbar() {
   useEffect(() => {
     if (pathname === '/') {
       setActiveTab('vaults');
-    } else if (pathname.includes('/dashboard')) {
-      setActiveTab('dashboard');
     } else if (pathname.includes('/settings')) {
       setActiveTab('settings');
     }
@@ -88,13 +86,6 @@ export default function Navbar() {
             onClick={() => setActiveTab('vaults')}
           >
             Vault Catalog
-          </Link>
-          <Link 
-            href="/dashboard" 
-            style={activeTab === 'dashboard' ? navStyles.activeLink : navStyles.inactiveLink}
-            onClick={() => setActiveTab('dashboard')}
-          >
-            Dashboard
           </Link>
           <Link 
             href="/settings" 

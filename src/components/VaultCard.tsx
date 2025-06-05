@@ -9,7 +9,6 @@ interface VaultCardProps {
   name: string;
   provider: string;
   targetAPY: string;
-  riskLevel: RiskLevel;
   lockPeriod: string;
   breakFee: string;
   minimumBTC: string;
@@ -20,37 +19,12 @@ export default function VaultCard({
   name,
   provider,
   targetAPY,
-  riskLevel,
   lockPeriod,
   breakFee,
   minimumBTC,
 }: VaultCardProps) {
   const router = useRouter();
   
-  // Helper function to determine the risk level bar width
-  const getRiskLevelWidth = (level: RiskLevel) => {
-    switch(level) {
-      case 'Low': return '20%';
-      case 'Medium-Low': return '40%';
-      case 'Medium': return '60%';
-      case 'Medium-High': return '80%';
-      case 'High': return '100%';
-      default: return '20%';
-    }
-  };
-
-  // Helper function to determine risk level color
-  const getRiskLevelColor = (level: RiskLevel) => {
-    switch(level) {
-      case 'Low': return '#4ade80';
-      case 'Medium-Low': return '#60a5fa';
-      case 'Medium': return '#facc15';
-      case 'Medium-High': return '#fb923c';
-      case 'High': return '#f87171';
-      default: return '#9ca3af';
-    }
-  };
-
   const navigateToVaultDetail = () => {
     router.push(`/vault/${id}`);
   };
@@ -85,21 +59,6 @@ export default function VaultCard({
       </div>
 
       <div style={{ borderTop: '1px solid #e5e7eb', paddingTop: '1rem' }}>
-        <div style={{ marginBottom: '1rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
-            <span style={{ fontSize: '0.875rem' }}>Risk Level:</span>
-            <span style={{ fontSize: '0.875rem' }}>{riskLevel}</span>
-          </div>
-          <div style={{ height: '0.5rem', backgroundColor: '#e5e7eb', borderRadius: '9999px', overflow: 'hidden' }}>
-            <div style={{ 
-              height: '100%', 
-              width: getRiskLevelWidth(riskLevel),
-              backgroundColor: getRiskLevelColor(riskLevel),
-              borderRadius: '9999px'
-            }}></div>
-          </div>
-        </div>
-
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
           <div>
             <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>Lock: {lockPeriod}</div>
