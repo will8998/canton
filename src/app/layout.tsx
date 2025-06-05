@@ -1,12 +1,14 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import { WalletProvider } from "@/context/WalletContext";
+import Footer from "@/components/Footer";
 
-const inter = Inter({
+const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
+  weight: ['300', '400', '500', '600', '700'],
   display: "swap",
-  variable: "--font-inter",
+  variable: "--font-space-grotesk",
 });
 
 export const metadata: Metadata = {
@@ -20,10 +22,15 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className={`${inter.variable} font-sans antialiased`}>
+    <html lang="en" className={spaceGrotesk.variable}>
+      <body className="font-space-grotesk antialiased">
         <WalletProvider>
-          {children}
+          <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ flex: 1 }}>
+              {children}
+            </div>
+            <Footer />
+          </div>
         </WalletProvider>
       </body>
     </html>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import Navbar from '@/components/Navbar';
 import VaultCard from '@/components/VaultCard';
 import VaultFilters from '@/components/VaultFilters';
@@ -124,53 +125,51 @@ export default function Home() {
   };
 
   return (
-    <div style={pageStyles.container}>
+    <div className="page-container">
       <Navbar />
       
-      <main style={pageStyles.main}>
-        <h1 style={pageStyles.heading}>Bitcoin Yield Vaults</h1>
-        <p style={pageStyles.description}>
-          Select a vault to view details or deposit. All vaults require KYC and non-US residency.
-        </p>
+      <div className="container">
+        {/* Hero Section */}
+        <div className="hero-section">
+          <div className="hero-content">
+            <h1>Bitcoin Yield Vaults</h1>
+            <p>Select a vault to view details or deposit. All vaults require KYC and non-US residency.</p>
+          </div>
+          <Image
+            src="/hero.png"
+            alt="Bitcoin Yield Vaults Hero"
+            fill
+            priority
+            className="hero-image"
+          />
+        </div>
         
-        <VaultFilters 
-          onFilterChange={handleFilterChange} 
-          onSortChange={handleSortChange}
-          onGeographyChange={handleGeographyChange}
-        />
+        {/* Filters */}
+        <div className="filter-section">
+          <VaultFilters 
+            onFilterChange={handleFilterChange} 
+            onSortChange={handleSortChange}
+            onGeographyChange={handleGeographyChange}
+          />
+        </div>
         
-        <div style={pageStyles.vaultGrid}>
+        {/* Vaults Grid */}
+        <div className="vault-grid">
           {filteredVaults.map(vault => (
             <VaultCard
               key={vault.id}
-              id={vault.id}
-              name={vault.name}
-              provider={vault.provider}
-              targetAPY={vault.targetAPY}
-              lockPeriod={vault.lockPeriod}
-              breakFee={vault.breakFee}
-              minimumBTC={vault.minimumBTC}
+              {...vault}
             />
           ))}
         </div>
         
-        <div style={pageStyles.footer}>
-          <p style={pageStyles.footerText}>
+        {/* Footer Stats */}
+        <div className="footer-stats">
+          <p>
             Total Vaults: {filteredVaults.length} | Total TVL: {totalAssets} BTC
           </p>
-          
-          <div style={pageStyles.annotationContainer}>
-            <h3 style={pageStyles.annotationHeading}>Annotations:</h3>
-            <ol style={pageStyles.annotationList}>
-              <li style={pageStyles.annotationItem}>Each "View Details" button navigates to the respective Vault Details Screen.</li>
-              <li style={pageStyles.annotationItem}>"Connect Wallet" button in top-right navigates to Wallet Connection Screen.</li>
-              <li style={pageStyles.annotationItem}>Filter and sort controls allow users to customize the vault listing view.</li>
-              <li style={pageStyles.annotationItem}>Risk level indicators provide visual representation of relative risk.</li>
-              <li style={pageStyles.annotationItem}>Vault data fetched from backend via SettleData.totalAssets for each vault.</li>
-            </ol>
-          </div>
         </div>
-      </main>
+      </div>
     </div>
   );
 }

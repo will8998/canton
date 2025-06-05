@@ -27,16 +27,25 @@ export default function WalletConnection({
     setSelectedWallet(wallet);
   };
   
-  const handleConnect = () => {
-    if (selectedWallet) {
-      // In a real app, this would trigger a wallet connection request
-      const mockAddress = '0x71C...F52A';
+  const handleConnect = async (walletId: string) => {
+    try {
+      // Use the context's connect method with the selected wallet type
+      await connect(walletId);
       
-      // Use the context's connect method
-      connect(mockAddress);
+      // Get the mock address based on wallet type from the context
+      const mockAddresses: { [key: string]: string } = {
+        metamask: '0x71C7656EC7ab88b098defB751B7401B5f6d8976F',
+        ledger: '0x742d35Cc6634C0532925a3b844Bc454e4438f44e',
+        trezor: '0x742d35Cc6634C0532925a3b844Bc454e4438f52A',
+        walletconnect: '0x742d35Cc6634C0532925a3b844Bc454e4438f44f'
+      };
+      
+      const address = mockAddresses[walletId] || mockAddresses.metamask;
       
       // Call the component's onConnect callback
-      onConnect(mockAddress);
+      onConnect(address);
+    } catch (error) {
+      console.error('Failed to connect wallet:', error);
     }
   };
   
@@ -121,7 +130,7 @@ export default function WalletConnection({
       alignItems: 'center',
       justifyContent: 'center',
       cursor: 'pointer',
-      transition: 'all 0.2s',
+      transition: 'all 0.2s ease',
       backgroundColor: 'white'
     },
     selectedWallet: {
@@ -171,7 +180,7 @@ export default function WalletConnection({
       </div>
       
       <div style={styles.contentContainer}>
-        <h2 style={styles.sectionTitle}>Connect your wallet to authenticate</h2>
+        <h2 style={styles.sectionTitle}>Connect your wallet to start earning</h2>
         <p style={styles.description}>
           You'll need to connect your wallet before proceeding with KYC or deposits.
           This enables secure authentication and transaction signing.
@@ -199,7 +208,7 @@ export default function WalletConnection({
                 ...styles.connectButton,
                 ...(selectedWallet ? {} : styles.disabledButton)
               }}
-              onClick={handleConnect}
+              onClick={() => selectedWallet && handleConnect(selectedWallet)}
               disabled={!selectedWallet}
             >
               Connect Wallet

@@ -13,7 +13,7 @@ export default function StepIndicator({ currentStep, totalSteps, title }: StepIn
       alignItems: 'center',
       border: '1px solid #e5e7eb',
       borderRadius: '9999px',
-      padding: '0.5rem 1.5rem',
+      padding: '0.5rem 1.5rem 0.5rem 3rem',
       position: 'relative' as 'relative'
     },
     stepText: {
@@ -22,7 +22,9 @@ export default function StepIndicator({ currentStep, totalSteps, title }: StepIn
     },
     dotContainer: {
       position: 'absolute' as 'absolute',
-      left: '1rem',
+      left: '0.75rem',
+      top: '50%',
+      transform: 'translateY(-50%)',
       width: '1.5rem',
       height: '1.5rem',
       display: 'flex',
