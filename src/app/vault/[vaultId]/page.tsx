@@ -45,14 +45,17 @@ import {
 import Navbar from '@/components/Navbar';
 
 import ConnectWalletModal from '@/components/ConnectWalletModal';
+import OngoingTransactionCard from '@/components/vault/OngoingTransactionCard';
 import { lagoonVaultDetails, LagoonVaultDetail } from '@/data/vaultDetails';
 import { useWallet } from '@/context/WalletContext';
+import { useTransaction } from '@/context/DepositContext';
 
 export default function VaultDetailPage() {
   const params = useParams();
   const router = useRouter();
   const vaultId = params.vaultId as string;
   const { isConnected, kycStatus, walletAddress } = useWallet();
+  const { createDeposit, createWithdrawal, getVaultTransactions, removeTransaction } = useTransaction();
   const [vaultDetail, setVaultDetail] = useState<LagoonVaultDetail | null>(null);
   const [timeRange, setTimeRange] = useState('6mo');
   const [showStrategyInfo, setShowStrategyInfo] = useState(false);
@@ -78,6 +81,7 @@ export default function VaultDetailPage() {
   const [chartTimeRange, setChartTimeRange] = useState('1M');
   const [showFullDescription, setShowFullDescription] = useState(false);
   const [hoveredTooltip, setHoveredTooltip] = useState<string | null>(null);
+  const [processedDepositIds, setProcessedDepositIds] = useState<Set<string>>(new Set());
 
   // Generate chart data based on active tab and time range
   const getChartData = () => {
@@ -188,6 +192,55 @@ export default function VaultDetailPage() {
       loadUserPosition();
     }
   }, [isConnected, kycStatus, walletAddress]);
+
+  // Monitor transaction approvals and update position
+  useEffect(() => {
+    if (isConnected && walletAddress && vaultDetail) {
+      const vaultTransactions = getVaultTransactions(vaultId, walletAddress);
+      const newlyApprovedDeposits = vaultTransactions.filter(transaction => 
+        transaction.type === 'deposit' && transaction.status === 'approved' && !processedDepositIds.has(transaction.id)
+      );
+      const newlyApprovedWithdrawals = vaultTransactions.filter(transaction => 
+        transaction.type === 'withdrawal' && transaction.status === 'approved' && !processedDepositIds.has(transaction.id)
+      );
+      
+      let positionChange = 0;
+      
+      if (newlyApprovedDeposits.length > 0) {
+        // Calculate total newly approved deposit amount
+        const totalNewlyApprovedAmount = newlyApprovedDeposits.reduce((sum, transaction) => 
+          sum + parseFloat(transaction.amount), 0
+        );
+        positionChange += totalNewlyApprovedAmount;
+        console.log(`Added ${totalNewlyApprovedAmount} cbBTC to position from ${newlyApprovedDeposits.length} approved deposits`);
+      }
+      
+      if (newlyApprovedWithdrawals.length > 0) {
+        // Calculate total newly approved withdrawal amount
+        const totalNewlyWithdrawnAmount = newlyApprovedWithdrawals.reduce((sum, transaction) => 
+          sum + parseFloat(transaction.amount), 0
+        );
+        positionChange -= totalNewlyWithdrawnAmount;
+        console.log(`Removed ${totalNewlyWithdrawnAmount} cbBTC from position from ${newlyApprovedWithdrawals.length} approved withdrawals`);
+      }
+      
+      if (positionChange !== 0) {
+        // Update user position to reflect newly approved transactions
+        setUserPosition(prev => ({
+          cbBTCBalance: Math.max(0, parseFloat(prev.cbBTCBalance) + positionChange).toFixed(3),
+          usdValue: `$${(Math.max(0, parseFloat(prev.cbBTCBalance) + positionChange) * 65000).toLocaleString()}`, // Mock BTC price
+          hasDeposited: Math.max(0, parseFloat(prev.cbBTCBalance) + positionChange) > 0
+        }));
+
+        // Mark these transactions as processed
+        setProcessedDepositIds(prev => {
+          const newSet = new Set(prev);
+          [...newlyApprovedDeposits, ...newlyApprovedWithdrawals].forEach(transaction => newSet.add(transaction.id));
+          return newSet;
+        });
+      }
+    }
+  }, [isConnected, walletAddress, vaultDetail, getVaultTransactions, vaultId, processedDepositIds]);
 
   // Load debug app mode from localStorage (matches debug panel logic)
   useEffect(() => {
@@ -330,16 +383,13 @@ export default function VaultDetailPage() {
       // Mock successful deposit for frontend
       console.log(`Processing deposit: ${depositAmount} cbBTC`);
       
-      // Update user position (mock data - replace with actual contract query)
-      setUserPosition(prev => ({
-        cbBTCBalance: (parseFloat(prev.cbBTCBalance) + parseFloat(depositAmount)).toFixed(3),
-        usdValue: `$${((parseFloat(prev.cbBTCBalance) + parseFloat(depositAmount)) * 65000).toLocaleString()}`, // Mock BTC price
-        hasDeposited: true
-      }));
+      // Create ongoing deposit record
+      const depositId = createDeposit(vaultId, depositAmount, walletAddress);
+      console.log('Created ongoing deposit:', depositId);
       
       setDepositAmount('');
       setShowDepositModal(false);
-      alert(`Deposit of ${depositAmount} cbBTC submitted successfully!`);
+      alert(`Deposit of ${depositAmount} cbBTC submitted successfully! It will appear in your position once approved by the fund manager.`);
       
     } catch (error) {
       console.error('Deposit error:', error);
@@ -391,16 +441,13 @@ export default function VaultDetailPage() {
       // Mock successful withdrawal for frontend
       console.log(`Processing withdrawal: ${withdrawAmount} cbBTC`);
       
-      // Update user position (mock data - replace with actual contract query)
-      setUserPosition(prev => ({
-        cbBTCBalance: Math.max(0, parseFloat(prev.cbBTCBalance) - parseFloat(withdrawAmount)).toFixed(3),
-        usdValue: `$${(Math.max(0, parseFloat(prev.cbBTCBalance) - parseFloat(withdrawAmount)) * 65000).toLocaleString()}`,
-        hasDeposited: Math.max(0, parseFloat(prev.cbBTCBalance) - parseFloat(withdrawAmount)) > 0
-      }));
+      // Create ongoing withdrawal record
+      const withdrawalId = createWithdrawal(vaultId, withdrawAmount, walletAddress);
+      console.log('Created ongoing withdrawal:', withdrawalId);
       
       setWithdrawAmount('');
       setShowWithdrawModal(false);
-      alert(`Withdrawal of ${withdrawAmount} cbBTC submitted successfully!`);
+      alert(`Withdrawal of ${withdrawAmount} cbBTC submitted successfully! It will be processed once approved by the fund manager.`);
       
     } catch (error) {
       console.error('Withdrawal error:', error);
@@ -1272,6 +1319,36 @@ export default function VaultDetailPage() {
                   <span style={{ marginLeft: '0.5rem' }}>VAULT LIVE</span>
                 </div>
                 <h1 style={styles.vaultName}>{vaultDetail.name}</h1>
+                {/* Small Prospectus Link */}
+                <div style={{ marginBottom: '1rem' }}>
+                  <Link 
+                    href={vaultDetail.prospectusUrl || "#"} 
+                    style={{
+                      fontSize: '0.875rem',
+                      color: '#3b82f6',
+                      textDecoration: 'none',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.25rem',
+                      transition: 'color 0.2s ease'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.color = '#1d4ed8';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.color = '#3b82f6';
+                    }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                      <polyline points="14,2 14,8 20,8"></polyline>
+                      <line x1="16" y1="13" x2="8" y2="13"></line>
+                      <line x1="16" y1="17" x2="8" y2="17"></line>
+                      <polyline points="10,9 9,9 8,9"></polyline>
+                    </svg>
+                    View Fund Prospectus
+                  </Link>
+                </div>
                 <div style={styles.vaultSummary}>
                   <div 
                     style={{
@@ -1390,33 +1467,54 @@ export default function VaultDetailPage() {
                    </div>
                  </div>
 
-                 {/* Full-width Prospectus Section */}
-                 <div style={styles.prospectusSection}>
-                   <div style={styles.prospectusContent}>
-                     <div style={styles.prospectusLeft}>
-                       <div style={styles.prospectusTitle}>Fund Prospectus</div>
-                     
-                     </div>
-                     <div style={styles.prospectusRight}>
-                       <Link 
-                         href="#" 
-                         style={styles.prospectusButton}
-                         onMouseEnter={(e) => {
-                           e.currentTarget.style.backgroundColor = '#ea580c';
-                           e.currentTarget.style.transform = 'translateY(-1px)';
-                         }}
-                         onMouseLeave={(e) => {
-                           e.currentTarget.style.backgroundColor = '#f97316';
-                           e.currentTarget.style.transform = 'translateY(0px)';
-                         }}
-                       >
-                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                           <path d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                         </svg>
-                         Download Prospectus
-                       </Link>
-                     </div>
-                   </div>
+                 {/* Invest Now Button */}
+                 <div style={{
+                   marginTop: '2rem',
+                   display: 'flex',
+                   justifyContent: 'center'
+                 }}>
+                   <button
+                     onClick={() => {
+                       const getStartedSection = document.getElementById('get-started-section');
+                       if (getStartedSection) {
+                         getStartedSection.scrollIntoView({ 
+                           behavior: 'smooth',
+                           block: 'start'
+                         });
+                       }
+                     }}
+                     style={{
+                       display: 'inline-flex',
+                       alignItems: 'center',
+                       gap: '0.75rem',
+                       padding: '1rem 2rem',
+                       backgroundColor: '#f97316',
+                       color: 'white',
+                       border: 'none',
+                       borderRadius: '0.75rem',
+                       fontSize: '1.125rem',
+                       fontWeight: '600',
+                       cursor: 'pointer',
+                       transition: 'all 0.2s ease',
+                       boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                     }}
+                     onMouseEnter={(e) => {
+                       e.currentTarget.style.backgroundColor = '#ea580c';
+                       e.currentTarget.style.transform = 'translateY(-2px)';
+                       e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.1)';
+                     }}
+                     onMouseLeave={(e) => {
+                       e.currentTarget.style.backgroundColor = '#f97316';
+                       e.currentTarget.style.transform = 'translateY(0px)';
+                       e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1)';
+                     }}
+                   >
+                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                       <circle cx="12" cy="12" r="10"/>
+                       <polyline points="12,6 12,12 16,14"/>
+                     </svg>
+                     Invest Now
+                   </button>
                  </div>
 
               </div>
@@ -1783,7 +1881,7 @@ export default function VaultDetailPage() {
           {/* Right Column */}
           <div>
             {/* Action Flow Section */}
-            <section style={styles.section}>
+            <section id="get-started-section" style={styles.section}>
               <div style={styles.sectionTitle}>
                 {userPosition.hasDeposited ? 'Your Position' : 'Get Started'}
               </div>
@@ -2054,6 +2152,34 @@ export default function VaultDetailPage() {
                 )}
               </div>
             </section>
+
+            {/* Ongoing Transactions Section */}
+            {isConnected && walletAddress && vaultDetail && (() => {
+              const vaultTransactions = getVaultTransactions(vaultId, walletAddress);
+              const pendingTransactions = vaultTransactions.filter(transaction => 
+                transaction.status === 'pending' || 
+                transaction.status === 'processing' || 
+                (transaction.status === 'approved' && Date.now() - transaction.timestamp < 300000) || // Show approved for 5 minutes
+                (transaction.status === 'rejected' && Date.now() - transaction.timestamp < 300000)   // Show rejected for 5 minutes
+              );
+              
+              return pendingTransactions.length > 0 ? (
+                <section style={styles.section}>
+                  <div style={styles.sectionTitle}>
+                    Ongoing Transactions
+                  </div>
+                  <div>
+                    {pendingTransactions.map(transaction => (
+                      <OngoingTransactionCard 
+                        key={transaction.id}
+                        transaction={transaction}
+                        onRemove={removeTransaction}
+                      />
+                    ))}
+                  </div>
+                </section>
+              ) : null;
+            })()}
           </div>
         </div>
       </main>

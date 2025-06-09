@@ -2,9 +2,11 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useWallet } from '@/context/WalletContext';
+import { useTransaction } from '@/context/DepositContext';
 
 export default function DebugPanel() {
   const { isConnected, walletAddress, kycStatus, updateKYCStatus } = useWallet();
+  const { ongoingTransactions, updateTransactionStatus } = useTransaction();
   const [position, setPosition] = useState({ x: 10, y: 10 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
@@ -289,6 +291,114 @@ export default function DebugPanel() {
           </button>
         </div>
       </div>
+
+      {/* Transaction Controls - Only enabled in test mode */}
+      {ongoingTransactions.length > 0 && (
+        <div style={{ marginTop: '0.5rem', marginBottom: '0.5rem' }}>
+          <div style={{ 
+            fontSize: '0.75rem', 
+            fontWeight: 'bold', 
+            marginBottom: '0.25rem',
+            color: isTestMode ? '#e5e7eb' : '#6b7280'
+          }}>
+            Transaction Controls:
+            {!isTestMode && (
+              <span style={{ fontWeight: 'normal', fontSize: '0.625rem', marginLeft: '0.5rem' }}>
+                (Test mode only)
+              </span>
+            )}
+          </div>
+          <div style={{ 
+            maxHeight: '150px', 
+            overflowY: 'auto',
+            fontSize: '0.625rem',
+            border: '1px solid #374151',
+            borderRadius: '0.25rem',
+            padding: '0.5rem'
+          }}>
+            {ongoingTransactions
+              .filter(transaction => transaction.status === 'pending' || transaction.status === 'processing')
+              .map(transaction => (
+                <div key={transaction.id} style={{ 
+                  marginBottom: '0.5rem',
+                  padding: '0.5rem',
+                  backgroundColor: '#374151',
+                  borderRadius: '0.25rem'
+                }}>
+                  <div style={{ marginBottom: '0.25rem', fontWeight: 'bold' }}>
+                    {transaction.type === 'withdrawal' ? '↗️' : '↘️'} {transaction.amount} cbBTC - {transaction.status}
+                  </div>
+                  <div style={{ 
+                    marginBottom: '0.25rem', 
+                    color: '#9ca3af',
+                    fontFamily: 'monospace'
+                  }}>
+                    {transaction.type.toUpperCase()} ID: {transaction.id.split('_').pop()?.toUpperCase()}
+                  </div>
+                  <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap' }}>
+                    <button
+                      onClick={() => isTestMode && updateTransactionStatus(transaction.id, 'processing')}
+                      disabled={!isTestMode}
+                      style={{
+                        fontSize: '0.5rem',
+                        padding: '0.25rem 0.4rem',
+                        backgroundColor: transaction.status === 'processing' ? '#3b82f6' : 'transparent',
+                        color: transaction.status === 'processing' ? 'white' : '#3b82f6',
+                        border: '1px solid #3b82f6',
+                        borderRadius: '0.25rem',
+                        cursor: isTestMode ? 'pointer' : 'not-allowed',
+                        opacity: isTestMode ? 1 : 0.5,
+                        transition: 'all 0.2s ease'
+                      }}
+                    >
+                      Process
+                    </button>
+                    <button
+                      onClick={() => isTestMode && updateTransactionStatus(transaction.id, 'approved')}
+                      disabled={!isTestMode}
+                      style={{
+                        fontSize: '0.5rem',
+                        padding: '0.25rem 0.4rem',
+                        backgroundColor: transaction.status === 'approved' ? '#10b981' : 'transparent',
+                        color: transaction.status === 'approved' ? 'white' : '#10b981',
+                        border: '1px solid #10b981',
+                        borderRadius: '0.25rem',
+                        cursor: isTestMode ? 'pointer' : 'not-allowed',
+                        opacity: isTestMode ? 1 : 0.5,
+                        transition: 'all 0.2s ease'
+                      }}
+                    >
+                      Approve
+                    </button>
+                    <button
+                      onClick={() => isTestMode && updateTransactionStatus(transaction.id, 'rejected')}
+                      disabled={!isTestMode}
+                      style={{
+                        fontSize: '0.5rem',
+                        padding: '0.25rem 0.4rem',
+                        backgroundColor: transaction.status === 'rejected' ? '#ef4444' : 'transparent',
+                        color: transaction.status === 'rejected' ? 'white' : '#ef4444',
+                        border: '1px solid #ef4444',
+                        borderRadius: '0.25rem',
+                        cursor: isTestMode ? 'pointer' : 'not-allowed',
+                        opacity: isTestMode ? 1 : 0.5,
+                        transition: 'all 0.2s ease'
+                      }}
+                    >
+                      Reject
+                    </button>
+                  </div>
+                </div>
+              ))
+            }
+            {ongoingTransactions.filter(transaction => transaction.status === 'pending' || transaction.status === 'processing').length === 0 && (
+              <div style={{ color: '#9ca3af', fontStyle: 'italic' }}>
+                No pending transactions
+              </div>
+            )}
+          </div>
+        </div>
+      )}
       
       {isTestMode && (
         <div style={{ 

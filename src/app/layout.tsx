@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import { WalletProvider } from "@/context/WalletContext";
+import { DepositProvider } from "@/context/DepositContext";
 import Footer from "@/components/Footer";
 import DebugPanel from "@/components/DebugPanel";
 
@@ -26,13 +27,15 @@ export default function RootLayout({
     <html lang="en" className={spaceGrotesk.variable}>
       <body className="font-space-grotesk antialiased">
         <WalletProvider>
-          <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-            <div style={{ flex: 1 }}>
-              {children}
+          <DepositProvider>
+            <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+              <div style={{ flex: 1 }}>
+                {children}
+              </div>
+              <Footer />
             </div>
-            <Footer />
-          </div>
-          <DebugPanel />
+            <DebugPanel />
+          </DepositProvider>
         </WalletProvider>
       </body>
     </html>
