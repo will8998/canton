@@ -5,11 +5,11 @@ import Image from 'next/image';
 import Navbar from '@/components/Navbar';
 import VaultCard from '@/components/VaultCard';
 import VaultFilters from '@/components/VaultFilters';
-import { vaults, Vault } from '@/data/vaults';
+import { sampleLagoonVaults, LagoonVault } from '@/data/lagoonVaults';
 
 export default function Home() {
-  const [filteredVaults, setFilteredVaults] = useState<Vault[]>(vaults);
-  const [totalAssets, setTotalAssets] = useState('125.5'); // Mock data
+  const [filteredVaults, setFilteredVaults] = useState<LagoonVault[]>(sampleLagoonVaults);
+  const [totalAssets, setTotalAssets] = useState('343'); // Total ETH from Lagoon vaults
   const [isMobile, setIsMobile] = useState(true);
   const [currentFilter, setCurrentFilter] = useState('All Providers');
   const [currentSort, setCurrentSort] = useState('Target APY');
@@ -97,27 +97,26 @@ export default function Home() {
   };
 
   const applyFilters = (filterBy: string, sortBy: string, geography: string) => {
-    let filtered = [...vaults];
+    let filtered = [...sampleLagoonVaults];
 
     // Apply provider filter
     if (filterBy !== 'All Providers') {
-      filtered = filtered.filter(vault => vault.provider === filterBy);
+      filtered = filtered.filter(vault => vault.assetManager?.name === filterBy);
     }
 
-    // Apply geography filter
+    // Apply geography filter (for now, all Lagoon vaults are global)
     if (geography !== 'All Regions') {
-      filtered = filtered.filter(vault => vault.geography === geography);
+      // Future implementation for geographic filtering
     }
 
     // Apply sorting
     if (sortBy === 'Target APY') {
       filtered.sort((a, b) => 
-        parseInt(a.targetAPY) > parseInt(b.targetAPY) ? -1 : 1
+        (b.apr || 0) - (a.apr || 0)
       );
-    } else if (sortBy === 'Risk Level') {
-      // Since we don't have risk level in our data, we'll sort by APY as a fallback
+    } else if (sortBy === 'TVL') {
       filtered.sort((a, b) => 
-        parseInt(a.targetAPY) > parseInt(b.targetAPY) ? -1 : 1
+        (b.tvl || 0) - (a.tvl || 0)
       );
     }
 
@@ -157,7 +156,7 @@ export default function Home() {
         <div className="vault-grid">
           {filteredVaults.map(vault => (
             <VaultCard
-              key={vault.id}
+              key={vault.address}
               {...vault}
             />
           ))}
@@ -166,7 +165,8 @@ export default function Home() {
         {/* Footer Stats */}
         <div className="footer-stats">
           <p>
-            Total Vaults: {filteredVaults.length} | Total TVL: {totalAssets} BTC
+            Active Vaults: {filteredVaults.filter(v => v.visible && !v.paused).length} | 
+            Total TVL: ${(filteredVaults.reduce((sum, vault) => sum + (vault.tvl || 0), 0) / 1000000).toFixed(1)}M
           </p>
         </div>
       </div>

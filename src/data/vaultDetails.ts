@@ -1,20 +1,30 @@
-import { Vault } from './vaults';
+import { LagoonVault } from './lagoonVaults';
 
-export interface VaultDetail extends Vault {
+export interface LagoonVaultDetail extends LagoonVault {
   strategy: string;
-  prospectusUrl: string;
-  targetAPY: string;
-  maxDrawdown: string;
-  btcCorrelation: string;
+  prospectusUrl?: string;
+  maxDrawdown?: string;
   performanceChart: PerformanceData[];
-  managementFee: string;
-  performanceFee: string;
-  earlyRedemptionFee: string;
-  custodySolution: string;
-  insurance: string;
-  noticePeriod: string;
-  tvlLimit: string;
-  lockUpDetail: string;
+  managementFee?: string;
+  performanceFee?: string;
+  custodySolution?: string;
+  insurance?: string;
+  tvlLimit?: string;
+  availableCapacity?: string;
+  additionalInfo?: {
+    minDeposit?: string;
+    maxDeposit?: string;
+    withdrawalNotice?: string;
+    settlementCycle?: string;
+    custodyDetails?: string;
+    lockupPeriod?: string;
+  };
+  contractAddresses?: {
+    administrator?: string;
+    safe?: string;
+    priceOracle?: string;
+    whitelistManager?: string;
+  };
 }
 
 export interface PerformanceData {
@@ -50,101 +60,84 @@ const generatePerformanceData = (baseValue: number, volatility: number, months: 
   return data;
 };
 
-export const vaultDetails: Record<string, VaultDetail> = {
-  'iyield-a': {
-    id: 'iyield-a',
-    name: 'iYield-A: Atitlan Bitcoin Multi-Strat Fund',
-    provider: 'Atitlan',
-    targetAPY: '12%+',
-    riskLevel: 'Low',
-    lockPeriod: '6 months',
-    breakFee: '3%',
-    minimumBTC: '10 BTC',
-    geography: 'US',
-    strategy: 'Diversified market-neutral strategies: arbitrage, HFT, options, long/short, momentum',
-    prospectusUrl: '/prospectus/atitlan.pdf',
-    maxDrawdown: '2%',
-    btcCorrelation: '0.1',
-    performanceChart: generatePerformanceData(100, 2), // Low volatility
-    managementFee: '1.5% (Early Bird)',
-    performanceFee: '15%',
-    earlyRedemptionFee: '3%',
-    custodySolution: 'Komainu and Zodia Custody',
-    insurance: 'FCA-registered, insured cold storage',
-    noticePeriod: '30 days',
-    tvlLimit: '10-20%',
-    lockUpDetail: '6-month soft lock-up with 3% penalty'
-  },
-  'iyield-x1': {
-    id: 'iyield-x1',
-    name: 'iYield-X1: XBTO Bitcoin Arbitrage Fund',
-    provider: 'XBTO',
-    targetAPY: '14%+',
-    riskLevel: 'Medium',
-    lockPeriod: '9 months',
-    breakFee: '4%',
-    minimumBTC: '15 BTC',
-    geography: 'Non-US',
-    strategy: 'Bitcoin arbitrage focused on exchange inefficiencies, cash & carry trades, funding rate capture',
-    prospectusUrl: '/prospectus/xbto-arbitrage.pdf',
-    maxDrawdown: '3.5%',
-    btcCorrelation: '0.25',
-    performanceChart: generatePerformanceData(100, 3.5), // Medium volatility
-    managementFee: '2%',
-    performanceFee: '20%',
-    earlyRedemptionFee: '4%',
-    custodySolution: 'Fireblocks Multi-Sig',
-    insurance: 'Crime insurance up to $100M',
-    noticePeriod: '45 days',
-    tvlLimit: '15-25%',
-    lockUpDetail: '9-month soft lock-up with 4% penalty'
-  },
-  'iyield-x2': {
-    id: 'iyield-x2',
-    name: 'iYield-X2: XBTO Bitcoin Options Strategy',
-    provider: 'XBTO',
-    targetAPY: '16%+',
-    riskLevel: 'Medium-High',
-    lockPeriod: '12 months',
-    breakFee: '5%',
-    minimumBTC: '20 BTC',
-    geography: 'Non-US',
-    strategy: 'Options-based yield generation utilizing covered calls, puts, straddles and advanced volatility strategies',
-    prospectusUrl: '/prospectus/xbto-options.pdf',
-    maxDrawdown: '5%',
-    btcCorrelation: '0.4',
-    performanceChart: generatePerformanceData(100, 5), // Higher volatility
-    managementFee: '2%',
-    performanceFee: '25%',
-    earlyRedemptionFee: '5%',
-    custodySolution: 'Copper.co with MPC technology',
-    insurance: 'Insured up to $500M per incident',
-    noticePeriod: '60 days',
-    tvlLimit: '20-30%',
-    lockUpDetail: '12-month soft lock-up with 5% penalty'
-  },
-  'iyield-f': {
-    id: 'iyield-f',
-    name: 'iYield-F: Forteus Bitcoin Yield Fund',
-    provider: 'Forteus',
-    targetAPY: '10%+',
-    riskLevel: 'Medium-Low',
-    lockPeriod: '3 months',
-    breakFee: '2%',
-    minimumBTC: '5 BTC',
-    geography: 'US',
-    strategy: 'Conservative yield strategies: lending, staking, basis trading with focus on capital preservation',
-    prospectusUrl: '/prospectus/forteus.pdf',
-    maxDrawdown: '1%',
-    btcCorrelation: '0.15',
-    performanceChart: generatePerformanceData(100, 1.5), // Lower volatility
-    managementFee: '1%',
-    performanceFee: '10%',
-    earlyRedemptionFee: '2%',
-    custodySolution: 'BitGo Multi-Sig',
-    insurance: "Lloyd's of London policy up to $100M",
-    noticePeriod: '15 days',
-    tvlLimit: '5-15%',
-    lockUpDetail: '3-month soft lock-up with 2% penalty'
+export const lagoonVaultDetails: Record<string, LagoonVaultDetail> = {
+  '0x936325050cb6cdf88e3ae9af80f83253c452d52e': {
+    address: "0x936325050cb6cdf88e3ae9af80f83253c452d52e",
+    chainId: 1,
+    name: "Atitlan Bitcoin Multi-Strat Fund",
+    logoUrl: "/lagoon-logo.svg",
+    shortDescription: "Advanced DeFi yield strategies with institutional-grade risk management",
+    description: "A sophisticated vault implementing multi-layered yield generation strategies across DeFi protocols. The vault employs dynamic allocation algorithms, automated rebalancing, and comprehensive risk management to optimize returns while maintaining capital preservation focus.",
+    averageProcessing: "7 days",
+    referralShare: "10%",
+    assetManager: {
+      name: "Lagoon Finance",
+      url: "https://lagoon.finance"
+    },
+    asset: {
+      symbol: "ETH",
+      address: "0x0000000000000000000000000000000000000000", // Native ETH
+      decimals: 18,
+      chainId: 1,
+      usdPrice: {
+        value: "350000000000", // $3500 with 8 decimals
+        decimals: 8,
+        precision: 2
+      }
+    },
+    points: [
+      {
+        name: "Lagoon Points",
+        value: "1x",
+        icon: "/lagoon-points.png"
+      }
+    ],
+    additionalAprs: [
+      {
+        asset: "ETH",
+        estimatedRewardApr: "5.2%",
+        estimatedReward30dApr: "4.8%"
+      }
+    ],
+    visible: true,
+    
+    // Risk and fee information (set by us)
+    riskLevel: "Low",
+    lockPeriod: "7 days",
+    breakFee: "0.5%",
+    minimumDeposit: "0.001 cbBTC",
+    
+    apr: 8.7,
+    tvl: 1200000, // $1.2M
+    totalAssets: "342857142857142857142", // ~343 ETH
+    totalSupply: "340000000000000000000",
+    pricePerShare: 1.008,
+    paused: false,
+    
+    // Detailed information
+    strategy: "Advanced multi-protocol yield optimization strategy utilizing automated market making, liquidity mining, lending protocols, and yield aggregation. The vault implements sophisticated risk management through diversified exposure across blue-chip DeFi protocols, dynamic rebalancing based on market conditions, and automated slippage protection. Smart contract risk is mitigated through protocol selection criteria and insurance coverage.",
+    prospectusUrl: "https://docs.lagoon.finance",
+    maxDrawdown: "2.8%",
+    performanceChart: generatePerformanceData(100, 2.5), // Conservative volatility for DeFi
+    managementFee: "2%",
+    performanceFee: "25%",
+    custodySolution: "Copper.co",
+    insurance: "Insured up to $500M through Ledger Enterprise",
+    tvlLimit: "2,500 BTC",
+    availableCapacity: "892 BTC",
+    additionalInfo: {
+      minDeposit: "0.001 cbBTC",
+      maxDeposit: "No limit",
+      withdrawalNotice: "60 days",
+      settlementCycle: "Daily rebalancing with weekly performance settlements",
+      custodyDetails: "Multi-Party Computation (MPC)",
+      lockupPeriod: "12-month lock-up period with 5% early withdrawal penalty"
+    },
+    contractAddresses: {
+      administrator: "0x7052E9a96a1076022AaB55E2453BAa8463992FB2",
+      safe: "0xd48549745e9a0E9dA6ABeA3a774ffc5EfBE49c2",
+      priceOracle: "0xBbc705ba91da39B2250084ACD1F1F31795FfC7735",
+      whitelistManager: "0x968D0Be20ec1fF7Ddf3D018553A75B885875C9b2"
+    }
   }
 }; 

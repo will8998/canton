@@ -14,51 +14,6 @@ export default function VaultFilters({ onFilterChange, onSortChange, onGeography
   const [geography, setGeography] = useState('All Regions');
   const [openDropdown, setOpenDropdown] = useState<'filter' | 'sort' | 'geography' | null>(null);
 
-  const filterStyles = {
-    container: {
-      display: 'flex',
-      flexWrap: 'wrap' as 'wrap',
-      gap: '1rem',
-      marginBottom: '1.5rem'
-    },
-    buttonContainer: {
-      position: 'relative' as 'relative'
-    },
-    button: {
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      width: '16rem',
-      padding: '0.5rem 1rem',
-      border: '1px solid #d1d5db',
-      borderRadius: '0.5rem',
-      backgroundColor: 'white',
-      cursor: 'pointer'
-    },
-    dropdownIcon: {
-      width: '1rem',
-      height: '1rem'
-    },
-    dropdown: {
-      position: 'absolute' as 'absolute',
-      top: 'calc(100% + 0.5rem)',
-      left: 0,
-      width: '16rem',
-      backgroundColor: 'white',
-      border: '1px solid #d1d5db',
-      borderRadius: '0.5rem',
-      boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-      zIndex: 10
-    },
-    dropdownItem: {
-      padding: '0.5rem 1rem',
-      cursor: 'pointer',
-      ':hover': {
-        backgroundColor: '#f3f4f6'
-      }
-    }
-  };
-
   const handleFilterChange = (filter: string) => {
     setFilterBy(filter);
     onFilterChange(filter);
@@ -104,17 +59,18 @@ export default function VaultFilters({ onFilterChange, onSortChange, onGeography
         />
       )}
       
-      <div style={filterStyles.container}>
-        <div style={filterStyles.buttonContainer}>
+      <div className="filter-container">
+        <div className="filter-button-container">
           <button 
-            style={filterStyles.button}
+            className="filter-button"
             onClick={() => toggleDropdown('filter')}
           >
             <span>Filter by: {filterBy}</span>
             <svg 
               xmlns="http://www.w3.org/2000/svg" 
               style={{
-                ...filterStyles.dropdownIcon,
+                width: '1rem',
+                height: '1rem',
                 transform: openDropdown === 'filter' ? 'rotate(180deg)' : 'none',
                 transition: 'transform 0.2s'
               }}
@@ -126,33 +82,28 @@ export default function VaultFilters({ onFilterChange, onSortChange, onGeography
             </svg>
           </button>
           {openDropdown === 'filter' && (
-            <div style={filterStyles.dropdown}>
-              <div style={filterStyles.dropdownItem} onClick={() => handleFilterChange('All Providers')}>
+            <div className="filter-dropdown">
+              <div className="filter-dropdown-item" onClick={() => handleFilterChange('All Providers')}>
                 All Providers
               </div>
-              <div style={filterStyles.dropdownItem} onClick={() => handleFilterChange('XBTO')}>
-                XBTO
-              </div>
-              <div style={filterStyles.dropdownItem} onClick={() => handleFilterChange('Atitlan')}>
-                Atitlan
-              </div>
-              <div style={filterStyles.dropdownItem} onClick={() => handleFilterChange('Forteus')}>
-                Forteus
+              <div className="filter-dropdown-item" onClick={() => handleFilterChange('Lagoon Finance')}>
+                Lagoon Finance
               </div>
             </div>
           )}
         </div>
 
-        <div style={filterStyles.buttonContainer}>
+        <div className="filter-button-container">
           <button 
-            style={filterStyles.button}
+            className="filter-button"
             onClick={() => toggleDropdown('sort')}
           >
             <span>Sort by: {sortBy}</span>
             <svg 
               xmlns="http://www.w3.org/2000/svg" 
               style={{
-                ...filterStyles.dropdownIcon,
+                width: '1rem',
+                height: '1rem',
                 transform: openDropdown === 'sort' ? 'rotate(180deg)' : 'none',
                 transition: 'transform 0.2s'
               }}
@@ -164,24 +115,28 @@ export default function VaultFilters({ onFilterChange, onSortChange, onGeography
             </svg>
           </button>
           {openDropdown === 'sort' && (
-            <div style={filterStyles.dropdown}>
-              <div style={filterStyles.dropdownItem} onClick={() => handleSortChange('Target APY')}>
-                Target APY
+            <div className="filter-dropdown">
+              <div className="filter-dropdown-item" onClick={() => handleSortChange('Target APY')}>
+                APR (Highest)
+              </div>
+              <div className="filter-dropdown-item" onClick={() => handleSortChange('TVL')}>
+                TVL (Highest)
               </div>
             </div>
           )}
         </div>
 
-        <div style={filterStyles.buttonContainer}>
+        <div className="filter-button-container">
           <button 
-            style={filterStyles.button}
+            className="filter-button"
             onClick={() => toggleDropdown('geography')}
           >
             <span>Geography: {geography}</span>
             <svg 
               xmlns="http://www.w3.org/2000/svg" 
               style={{
-                ...filterStyles.dropdownIcon,
+                width: '1rem',
+                height: '1rem',
                 transform: openDropdown === 'geography' ? 'rotate(180deg)' : 'none',
                 transition: 'transform 0.2s'
               }}
@@ -193,14 +148,14 @@ export default function VaultFilters({ onFilterChange, onSortChange, onGeography
             </svg>
           </button>
           {openDropdown === 'geography' && (
-            <div style={filterStyles.dropdown}>
-              <div style={filterStyles.dropdownItem} onClick={() => handleGeographyChange('All Regions')}>
+            <div className="filter-dropdown">
+              <div className="filter-dropdown-item" onClick={() => handleGeographyChange('All Regions')}>
                 All Regions
               </div>
-              <div style={filterStyles.dropdownItem} onClick={() => handleGeographyChange('US')}>
+              <div className="filter-dropdown-item" onClick={() => handleGeographyChange('US')}>
                 US
               </div>
-              <div style={filterStyles.dropdownItem} onClick={() => handleGeographyChange('Non-US')}>
+              <div className="filter-dropdown-item" onClick={() => handleGeographyChange('Non-US')}>
                 Non-US
               </div>
             </div>

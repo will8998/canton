@@ -11,37 +11,55 @@ interface ConnectWalletModalProps {
 }
 
 export default function ConnectWalletModal({ isOpen, onClose }: ConnectWalletModalProps) {
-  const [selectedWallet, setSelectedWallet] = useState<string | null>(null);
-  const { connect } = useWallet();
+  const [connectingWallet, setConnectingWallet] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const { connect, connecting, error } = useWallet();
 
   if (!isOpen) return null;
 
   const handleConnect = async (walletId: string) => {
+    setConnectingWallet(walletId);
+    setErrorMessage(null);
+    
     try {
       await connect(walletId);
       onClose();
-    } catch (error) {
+    } catch (error: any) {
+      setErrorMessage(error.message || 'Failed to connect wallet');
       console.error('Failed to connect wallet:', error);
+    } finally {
+      setConnectingWallet(null);
     }
+  };
+
+  const getWalletStatus = (walletId: string) => {
+    if (connectingWallet === walletId) {
+      return 'Connecting...';
+    }
+    return null;
+  };
+
+  const isWalletDisabled = (walletId: string) => {
+    return connectingWallet !== null;
   };
 
   const wallets = [
     {
       id: 'metamask',
       name: 'MetaMask',
-      description: 'Connect to your MetaMask Wallet',
+      description: 'Connect to your MetaMask browser extension',
       logo: '/metamask.svg'
     },
     {
       id: 'ledger',
       name: 'Ledger',
-      description: 'Connect to your Ledger Hardware Wallet',
+      description: 'Connect your Ledger device via USB (Chrome/Edge required)',
       logo: '/ledger.svg'
     },
     {
       id: 'trezor',
       name: 'Trezor',
-      description: 'Connect to your Trezor Hardware Wallet',
+      description: 'Connect your Trezor device (requires device confirmation)',
       logo: '/trezor.svg'
     }
   ];
@@ -104,15 +122,16 @@ export default function ConnectWalletModal({ isOpen, onClose }: ConnectWalletMod
       flexDirection: 'column' as const,
       gap: '1rem'
     },
-    walletOption: (isSelected: boolean) => ({
+    walletOption: (isConnecting: boolean, isDisabled: boolean) => ({
       display: 'flex',
       alignItems: 'center',
       gap: '1rem',
       padding: '1rem',
       borderRadius: '1rem',
-      border: `1px solid ${isSelected ? '#111827' : '#e5e7eb'}`,
-      backgroundColor: isSelected ? '#f8f9fa' : 'white',
-      cursor: 'pointer',
+      border: `1px solid ${isConnecting ? '#111827' : '#e5e7eb'}`,
+      backgroundColor: isConnecting ? '#f8f9fa' : 'white',
+      cursor: isDisabled ? 'not-allowed' : 'pointer',
+      opacity: isDisabled ? 0.6 : 1,
       transition: 'all 0.2s ease'
     }),
     walletLogo: {
@@ -167,27 +186,87 @@ export default function ConnectWalletModal({ isOpen, onClose }: ConnectWalletMod
         </div>
 
         <div style={styles.content}>
+          {errorMessage && (
+            <div style={{
+              padding: '1rem',
+              marginBottom: '1rem',
+              backgroundColor: '#fef2f2',
+              border: '1px solid #fecaca',
+              borderRadius: '0.5rem',
+              color: '#dc2626',
+              fontSize: '0.875rem'
+            }}>
+              {errorMessage}
+            </div>
+          )}
+          
           <div style={styles.walletList}>
-            {wallets.map(wallet => (
-              <div
-                key={wallet.id}
-                style={styles.walletOption(selectedWallet === wallet.id)}
-                onClick={() => handleConnect(wallet.id)}
-              >
-                <div style={styles.walletLogo}>
-                  <Image
-                    src={wallet.logo}
-                    alt={`${wallet.name} logo`}
-                    width={32}
-                    height={32}
-                  />
+            {wallets.map(wallet => {
+              const isConnecting = connectingWallet === wallet.id;
+              const isDisabled = isWalletDisabled(wallet.id);
+              const status = getWalletStatus(wallet.id);
+              
+              return (
+                <div
+                  key={wallet.id}
+                  style={styles.walletOption(isConnecting, isDisabled)}
+                  onClick={() => !isDisabled && handleConnect(wallet.id)}
+                >
+                  <div style={styles.walletLogo}>
+                    <Image
+                      src={wallet.logo}
+                      alt={`${wallet.name} logo`}
+                      width={32}
+                      height={32}
+                    />
+                  </div>
+                  <div style={styles.walletInfo}>
+                    <div style={styles.walletName}>
+                      {wallet.name}
+                      {status && (
+                        <span style={{ 
+                          marginLeft: '0.5rem', 
+                          fontSize: '0.75rem',
+                          color: isConnecting ? '#3b82f6' : '#6b7280',
+                          fontWeight: 'normal'
+                        }}>
+                          {status}
+                        </span>
+                      )}
+                    </div>
+                    <div style={styles.walletDescription}>{wallet.description}</div>
+                  </div>
+                  {isConnecting && (
+                    <div style={{ 
+                      width: '20px', 
+                      height: '20px',
+                      border: '2px solid #e5e7eb',
+                      borderTop: '2px solid #3b82f6',
+                      borderRadius: '50%',
+                      animation: 'spin 1s linear infinite'
+                    }} />
+                  )}
                 </div>
-                <div style={styles.walletInfo}>
-                  <div style={styles.walletName}>{wallet.name}</div>
-                  <div style={styles.walletDescription}>{wallet.description}</div>
-                </div>
-              </div>
-            ))}
+              );
+            })}
+          </div>
+        </div>
+
+        <div style={{
+          padding: '1rem 1.5rem',
+          backgroundColor: '#f8f9fa',
+          borderTop: '1px solid #e5e7eb',
+          fontSize: '0.75rem',
+          color: '#6b7280'
+        }}>
+          <div style={{ marginBottom: '0.5rem' }}>
+            <strong>Hardware Wallet Requirements:</strong>
+          </div>
+          <div style={{ marginBottom: '0.25rem' }}>
+            • <strong>Ledger:</strong> Device connected via USB, Ethereum app open & unlocked
+          </div>
+          <div>
+            • <strong>Trezor:</strong> Device connected, confirm address on device screen
           </div>
         </div>
 

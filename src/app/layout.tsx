@@ -3,6 +3,7 @@ import { Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import { WalletProvider } from "@/context/WalletContext";
 import Footer from "@/components/Footer";
+import DebugPanel from "@/components/DebugPanel";
 
 const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
@@ -31,6 +32,7 @@ export default function RootLayout({
             </div>
             <Footer />
           </div>
+          <DebugPanel />
         </WalletProvider>
       </body>
     </html>
