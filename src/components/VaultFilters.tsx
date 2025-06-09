@@ -5,14 +5,12 @@ import { useState } from 'react';
 interface VaultFiltersProps {
   onFilterChange: (filterBy: string) => void;
   onSortChange: (sortBy: string) => void;
-  onGeographyChange: (geography: string) => void;
 }
 
-export default function VaultFilters({ onFilterChange, onSortChange, onGeographyChange }: VaultFiltersProps) {
+export default function VaultFilters({ onFilterChange, onSortChange }: VaultFiltersProps) {
   const [filterBy, setFilterBy] = useState('All Providers');
   const [sortBy, setSortBy] = useState('Target APY');
-  const [geography, setGeography] = useState('All Regions');
-  const [openDropdown, setOpenDropdown] = useState<'filter' | 'sort' | 'geography' | null>(null);
+  const [openDropdown, setOpenDropdown] = useState<'filter' | 'sort' | null>(null);
 
   const handleFilterChange = (filter: string) => {
     setFilterBy(filter);
@@ -26,19 +24,13 @@ export default function VaultFilters({ onFilterChange, onSortChange, onGeography
     setOpenDropdown(null);
   };
 
-  const handleGeographyChange = (geo: string) => {
-    setGeography(geo);
-    onGeographyChange(geo);
-    setOpenDropdown(null);
-  };
-
   // Close dropdown when clicking outside
   const handleClickOutside = () => {
     setOpenDropdown(null);
   };
 
   // Toggle dropdown
-  const toggleDropdown = (dropdown: 'filter' | 'sort' | 'geography') => {
+  const toggleDropdown = (dropdown: 'filter' | 'sort') => {
     setOpenDropdown(openDropdown === dropdown ? null : dropdown);
   };
 
@@ -126,41 +118,7 @@ export default function VaultFilters({ onFilterChange, onSortChange, onGeography
           )}
         </div>
 
-        <div className="filter-button-container">
-          <button 
-            className="filter-button"
-            onClick={() => toggleDropdown('geography')}
-          >
-            <span>Geography: {geography}</span>
-            <svg 
-              xmlns="http://www.w3.org/2000/svg" 
-              style={{
-                width: '1rem',
-                height: '1rem',
-                transform: openDropdown === 'geography' ? 'rotate(180deg)' : 'none',
-                transition: 'transform 0.2s'
-              }}
-              fill="none" 
-              viewBox="0 0 24 24" 
-              stroke="currentColor"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
-          </button>
-          {openDropdown === 'geography' && (
-            <div className="filter-dropdown">
-              <div className="filter-dropdown-item" onClick={() => handleGeographyChange('All Regions')}>
-                All Regions
-              </div>
-              <div className="filter-dropdown-item" onClick={() => handleGeographyChange('US')}>
-                US
-              </div>
-              <div className="filter-dropdown-item" onClick={() => handleGeographyChange('Non-US')}>
-                Non-US
-              </div>
-            </div>
-          )}
-        </div>
+
       </div>
     </>
   );

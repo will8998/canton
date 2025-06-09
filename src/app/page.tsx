@@ -13,7 +13,6 @@ export default function Home() {
   const [isMobile, setIsMobile] = useState(true);
   const [currentFilter, setCurrentFilter] = useState('All Providers');
   const [currentSort, setCurrentSort] = useState('Target APY');
-  const [currentGeography, setCurrentGeography] = useState('All Regions');
 
   useEffect(() => {
     // Check if window is defined (client-side)
@@ -83,30 +82,20 @@ export default function Home() {
 
   const handleFilterChange = (filterBy: string) => {
     setCurrentFilter(filterBy);
-    applyFilters(filterBy, currentSort, currentGeography);
+    applyFilters(filterBy, currentSort);
   };
 
   const handleSortChange = (sortBy: string) => {
     setCurrentSort(sortBy);
-    applyFilters(currentFilter, sortBy, currentGeography);
+    applyFilters(currentFilter, sortBy);
   };
 
-  const handleGeographyChange = (geography: string) => {
-    setCurrentGeography(geography);
-    applyFilters(currentFilter, currentSort, geography);
-  };
-
-  const applyFilters = (filterBy: string, sortBy: string, geography: string) => {
+  const applyFilters = (filterBy: string, sortBy: string) => {
     let filtered = [...sampleLagoonVaults];
 
     // Apply provider filter
     if (filterBy !== 'All Providers') {
       filtered = filtered.filter(vault => vault.assetManager?.name === filterBy);
-    }
-
-    // Apply geography filter (for now, all Lagoon vaults are global)
-    if (geography !== 'All Regions') {
-      // Future implementation for geographic filtering
     }
 
     // Apply sorting
@@ -148,7 +137,6 @@ export default function Home() {
           <VaultFilters 
             onFilterChange={handleFilterChange} 
             onSortChange={handleSortChange}
-            onGeographyChange={handleGeographyChange}
           />
         </div>
         
