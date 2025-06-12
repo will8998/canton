@@ -4,7 +4,6 @@ import "./globals.css";
 import { WalletProvider } from "@/context/WalletContext";
 import { DepositProvider } from "@/context/DepositContext";
 import Footer from "@/components/Footer";
-import DebugPanel from "@/components/DebugPanel";
 
 const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
@@ -34,7 +33,6 @@ export default function RootLayout({
               </div>
               <Footer />
             </div>
-            <DebugPanel />
           </DepositProvider>
         </WalletProvider>
       </body>

@@ -40,11 +40,12 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, 
-  Tooltip, Legend, ResponsiveContainer, Area, AreaChart
+  Tooltip, Legend, ResponsiveContainer, Area, AreaChart,
+  PieChart, Pie, BarChart, Bar
 } from 'recharts';
 import Navbar from '@/components/Navbar';
 
-import ConnectWalletModal from '@/components/ConnectWalletModal';
+import ContactForm from '@/components/ContactForm';
 import OngoingTransactionCard from '@/components/vault/OngoingTransactionCard';
 import { lagoonVaultDetails, LagoonVaultDetail } from '@/data/vaultDetails';
 import { useWallet } from '@/context/WalletContext';
@@ -60,7 +61,7 @@ export default function VaultDetailPage() {
   const [timeRange, setTimeRange] = useState('6mo');
   const [showStrategyInfo, setShowStrategyInfo] = useState(false);
 
-  const [isConnectWalletModalOpen, setIsConnectWalletModalOpen] = useState(false);
+  const [isContactModalOpen, setIsContactModalOpen] = useState(false);
   const [depositAmount, setDepositAmount] = useState('');
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [userPosition, setUserPosition] = useState<{
@@ -76,11 +77,11 @@ export default function VaultDetailPage() {
   const [showDepositModal, setShowDepositModal] = useState(false);
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  const [debugAppMode, setDebugAppMode] = useState('test');
-  const [activeChartTab, setActiveChartTab] = useState<'price' | 'tvl'>('price');
+
+  const [activeChartTab, setActiveChartTab] = useState<'price' | 'tvl' | 'returns'>('price');
   const [chartTimeRange, setChartTimeRange] = useState('1M');
-  const [showFullDescription, setShowFullDescription] = useState(false);
   const [hoveredTooltip, setHoveredTooltip] = useState<string | null>(null);
+  const [activeFundTab, setActiveFundTab] = useState<'details' | 'performance' | 'team'>('details');
   const [processedDepositIds, setProcessedDepositIds] = useState<Set<string>>(new Set());
 
   // Generate chart data based on active tab and time range
@@ -116,9 +117,9 @@ export default function VaultDetailPage() {
           rawDate: date
         });
       }
-    } else {
-             // TVL data - fluctuates around current TVL
-       const baseTVL = vaultDetail?.tvl || 1200000; // $1.2M
+    } else if (activeChartTab === 'tvl') {
+      // TVL data - fluctuates around current TVL
+      const baseTVL = vaultDetail?.tvl || 1200000; // $1.2M
       
       for (let i = 0; i < points; i++) {
         const date = new Date();
@@ -137,6 +138,32 @@ export default function VaultDetailPage() {
           rawDate: date
         });
       }
+    } else {
+      // Monthly Returns data
+      const monthlyReturnsData = [
+        { month: '2024-01', return: 0.8, cumulative: 0.8 },
+        { month: '2024-02', return: 1.4, cumulative: 2.2 },
+        { month: '2024-03', return: 0.5, cumulative: 2.7 },
+        { month: '2024-04', return: 1.0, cumulative: 3.8 },
+        { month: '2024-05', return: 0.7, cumulative: 4.5 },
+        { month: '2024-06', return: 1.3, cumulative: 5.9 },
+        { month: '2024-07', return: 0.9, cumulative: 6.8 },
+        { month: '2024-08', return: 1.1, cumulative: 8.0 },
+        { month: '2024-09', return: 0.6, cumulative: 8.6 },
+        { month: '2024-10', return: 1.5, cumulative: 10.2 },
+        { month: '2024-11', return: 0.8, cumulative: 11.1 },
+        { month: '2024-12', return: 1.2, cumulative: 12.4 }
+      ];
+      
+      return monthlyReturnsData.map(item => ({
+        date: new Date(item.month + '-01').toLocaleDateString('en-US', { 
+          month: 'short', 
+          year: '2-digit' 
+        }),
+        value: item.return,
+        cumulative: item.cumulative,
+        rawDate: new Date(item.month + '-01')
+      }));
     }
     
     return data;
@@ -242,32 +269,7 @@ export default function VaultDetailPage() {
     }
   }, [isConnected, walletAddress, vaultDetail, getVaultTransactions, vaultId, processedDepositIds]);
 
-  // Load debug app mode from localStorage (matches debug panel logic)
-  useEffect(() => {
-    const savedMode = localStorage.getItem('debugAppMode');
-    const envMode = process.env.NEXT_PUBLIC_APP_MODE;
-    setDebugAppMode(savedMode || envMode || 'test');
 
-    // Listen for storage changes to sync with debug panel (different tabs)
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'debugAppMode' && e.newValue) {
-        setDebugAppMode(e.newValue);
-      }
-    };
-
-    // Listen for custom events to sync with debug panel (same tab)
-    const handleAppModeChange = (e: CustomEvent) => {
-      setDebugAppMode(e.detail);
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-    window.addEventListener('debugAppModeChange', handleAppModeChange as EventListener);
-    
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener('debugAppModeChange', handleAppModeChange as EventListener);
-    };
-  }, []);
 
   /* 
    * BACKEND TODO: Load user's vault position from smart contract
@@ -303,8 +305,8 @@ export default function VaultDetailPage() {
     }
   };
 
-  const handleConnectWallet = () => {
-    setIsConnectWalletModalOpen(true);
+  const handleContactUs = () => {
+    setIsContactModalOpen(true);
   };
 
   const handleCompleteKYC = () => {
@@ -604,19 +606,26 @@ export default function VaultDetailPage() {
     },
     metricCard: {
       padding: '1.5rem',
-      backgroundColor: '#f8f9fa',
-      borderRadius: '0.75rem',
-      border: '1px solid #e5e7eb'
+      backgroundColor: 'white',
+      borderRadius: '0.5rem',
+      border: '2px solid #f97316',
+      position: 'relative' as const,
+      transition: 'all 0.2s ease',
+            cursor: 'pointer'
     },
     metricLabel: {
       fontSize: '0.875rem',
-      color: '#6b7280',
-      marginBottom: '0.5rem'
+      color: '#111827',
+      marginBottom: '0.5rem',
+      fontWeight: '500',
+      letterSpacing: '0.025em',
+            textTransform: 'uppercase' as const
     },
     metricValue: {
-      fontSize: '1.75rem',
-      fontWeight: 'bold',
-      color: '#111827'
+      fontSize: '1.25rem',
+      fontWeight: '600',
+      color: '#111827',
+            lineHeight: '1.3'
     },
     section: {
       backgroundColor: 'white',
@@ -659,7 +668,7 @@ export default function VaultDetailPage() {
       gap: '1rem',
       marginBottom: '1.5rem'
     },
-    strategyItem: {
+    strategyItemCard: {
       display: 'flex',
       alignItems: 'flex-start',
       gap: '1rem',
@@ -1161,31 +1170,7 @@ export default function VaultDetailPage() {
       boxShadow: '0 8px 32px rgba(249, 115, 22, 0.2), 0 2px 8px rgba(249, 115, 22, 0.1)',
       position: 'relative' as const
     },
-    riskLevelContainer: {
-      display: 'flex',
-      flexDirection: 'column' as const,
-      alignItems: 'center',
-      gap: '0.5rem'
-    },
-    riskLevelText: {
-      fontSize: '1.125rem',
-      fontWeight: 'bold',
-      color: '#f59e0b'
-    },
-    riskLevelBar: {
-      width: '100%',
-      height: '6px',
-      backgroundColor: '#e5e7eb',
-      borderRadius: '3px',
-      overflow: 'hidden',
-      position: 'relative' as const
-    },
-    riskLevelFill: {
-      width: '60%',
-      height: '100%',
-      backgroundColor: '#f59e0b',
-      borderRadius: '3px'
-    },
+
     tooltip: {
       position: 'absolute' as const,
       bottom: '100%',
@@ -1235,6 +1220,749 @@ export default function VaultDetailPage() {
       width: '20px',
       height: '20px',
       borderRadius: '50%'
+    },
+    contactCard: {
+      backgroundColor: '#f8f9fa',
+      borderRadius: '1rem',
+      padding: '2rem',
+      border: '1px solid #e5e7eb'
+    },
+    contactContent: {
+      textAlign: 'center' as const
+    },
+    contactTitle: {
+      fontSize: '1.5rem',
+      fontWeight: 'bold',
+      color: '#111827',
+      marginBottom: '1rem'
+    },
+    contactDescription: {
+      fontSize: '1rem',
+      color: '#6b7280',
+      marginBottom: '2rem',
+      lineHeight: '1.6'
+    },
+    contactFeatures: {
+      display: 'flex',
+      flexDirection: 'column' as const,
+      gap: '1rem',
+      marginBottom: '2rem'
+    },
+    contactFeature: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: '0.75rem',
+      fontSize: '1rem',
+      color: '#374151'
+    },
+    contactFeatureIcon: {
+      fontSize: '1.25rem'
+    },
+    contactButton: {
+      padding: '0.875rem 2rem',
+      backgroundColor: '#f97316',
+      color: 'white',
+      border: 'none',
+      borderRadius: '0.75rem',
+      fontSize: '1rem',
+      fontWeight: '600',
+      cursor: 'pointer',
+      transition: 'background-color 0.2s ease'
+    },
+    performanceMetricsGrid: {
+      display: 'grid',
+      gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4, 1fr)',
+      gap: isMobile ? '0.75rem' : '1rem',
+      marginBottom: '2rem'
+    },
+    performanceMetricCard: {
+      padding: '1rem',
+      backgroundColor: '#f8f9fa',
+      borderRadius: '0.5rem',
+      border: '1px solid #e5e7eb',
+      textAlign: 'center' as const,
+      position: 'relative' as const
+    },
+    monthlyReturnsSection: {
+      marginTop: '1.5rem'
+    },
+    monthlyReturnsTitle: {
+      fontSize: '1.125rem',
+      fontWeight: 'bold',
+      color: '#111827',
+      marginBottom: '1rem'
+    },
+    monthlyReturnsTable: {
+      backgroundColor: '#f8f9fa',
+      borderRadius: '0.5rem',
+      border: '1px solid #e5e7eb',
+      overflow: 'hidden'
+    },
+    monthlyReturnsRow: {
+      display: 'grid',
+      gridTemplateColumns: '1fr 1fr 1fr',
+      borderBottom: '1px solid #e5e7eb'
+    },
+    monthlyReturnsHeader: {
+      padding: '0.75rem',
+      backgroundColor: '#f3f4f6',
+      fontSize: '0.875rem',
+      fontWeight: '600',
+      color: '#374151',
+      borderRight: '1px solid #e5e7eb'
+    },
+    monthlyReturnsCell: {
+      padding: '0.75rem',
+      fontSize: '0.875rem',
+      color: '#111827',
+      borderRight: '1px solid #e5e7eb'
+    },
+    heroPerformanceMetrics: {
+      display: 'grid',
+      gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)',
+      gap: isMobile ? '0.75rem' : '1rem',
+      marginTop: '2rem',
+      marginBottom: '1.5rem'
+    },
+    heroMetricCard: {
+      padding: '1.25rem',
+      backgroundColor: '#f8f9fa',
+      borderRadius: '0.75rem',
+      border: '1px solid #e5e7eb',
+      textAlign: 'center' as const,
+      position: 'relative' as const
+    },
+    heroMetricLabel: {
+      fontSize: '0.875rem',
+      color: '#6b7280',
+      marginBottom: '0.5rem',
+      fontWeight: '500'
+    },
+    heroMetricValue: {
+      fontSize: '1.75rem',
+      fontWeight: 'bold',
+      color: '#111827'
+    },
+    secondaryInfoGrid: {
+      display: 'grid',
+      gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)',
+      gap: isMobile ? '0.75rem' : '1rem',
+      marginTop: '1rem'
+    },
+    secondaryInfoCard: {
+      padding: '1rem',
+      backgroundColor: '#f8f9fa',
+      borderRadius: '0.5rem',
+      border: '1px solid #e5e7eb',
+      textAlign: 'center' as const,
+      position: 'relative' as const
+    },
+    secondaryInfoLabel: {
+      fontSize: '0.75rem',
+      color: '#6b7280',
+      marginBottom: '0.5rem',
+      fontWeight: '500'
+    },
+    feeStructureSection: {
+      backgroundColor: 'white',
+      borderRadius: isMobile ? '0.5rem' : '1rem',
+      padding: isMobile ? '1.5rem' : '2rem',
+      marginBottom: isMobile ? '1rem' : '2rem',
+      border: '1px solid #e5e7eb'
+    },
+    feeStructureGrid: {
+      display: 'grid',
+      gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(auto-fit, minmax(200px, 1fr))',
+      gap: isMobile ? '1rem' : '1.5rem',
+      marginBottom: '2rem'
+    },
+    feeStructureItem: {
+      display: 'flex',
+      flexDirection: 'column' as const,
+      gap: '0.5rem'
+    },
+    feeStructureLabel: {
+      fontSize: '0.875rem',
+      color: '#6b7280',
+      fontWeight: '500'
+    },
+    feeStructureValue: {
+      fontSize: '1.5rem',
+      fontWeight: 'bold',
+      color: '#111827'
+    },
+    feeStructureSubtext: {
+      fontSize: '0.75rem',
+      color: '#6b7280',
+      marginTop: '0.25rem'
+    },
+    feeStructureBadges: {
+      display: 'flex',
+      flexDirection: isMobile ? 'column' as const : 'row' as const,
+      gap: '1rem',
+      marginTop: '1.5rem'
+    },
+    ctaSection: {
+      background: 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)',
+      borderRadius: isMobile ? '0.5rem' : '1rem',
+      padding: isMobile ? '2rem 1.5rem' : '3rem 2rem',
+      marginBottom: isMobile ? '1rem' : '2rem',
+      color: 'white',
+      textAlign: 'center' as const
+    },
+    ctaContent: {
+      maxWidth: '1000px',
+      margin: '0 auto'
+    },
+    ctaTitle: {
+      fontSize: isMobile ? '1.75rem' : '2.5rem',
+      fontWeight: 'bold',
+      marginBottom: '1rem',
+      color: 'white'
+    },
+    ctaSubtitle: {
+      fontSize: isMobile ? '1rem' : '1.25rem',
+      lineHeight: '1.6',
+      marginBottom: '2.5rem',
+      color: 'rgba(255, 255, 255, 0.9)',
+      maxWidth: '800px',
+      margin: '0 auto 2.5rem auto'
+    },
+    ctaFeatures: {
+      display: 'grid',
+      gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)',
+      gap: isMobile ? '1.5rem' : '2rem',
+      marginBottom: '3rem'
+    },
+    ctaFeature: {
+      display: 'flex',
+      alignItems: 'flex-start',
+      gap: '1rem',
+      textAlign: 'left' as const
+    },
+    ctaFeatureIcon: {
+      fontSize: '2rem',
+      flexShrink: 0,
+      marginTop: '0.25rem'
+    },
+    ctaFeatureContent: {
+      flex: 1
+    },
+    ctaFeatureTitle: {
+      fontSize: '1.125rem',
+      fontWeight: 'bold',
+      marginBottom: '0.5rem',
+      color: 'white'
+    },
+    ctaFeatureText: {
+      fontSize: '0.875rem',
+      lineHeight: '1.5',
+      color: 'rgba(255, 255, 255, 0.8)',
+      margin: 0
+    },
+    ctaAction: {
+      textAlign: 'center' as const
+    },
+    ctaButton: {
+      padding: '1rem 2.5rem',
+      backgroundColor: 'rgba(255, 255, 255, 0.95)',
+      color: '#f97316',
+      border: 'none',
+      borderRadius: '0.75rem',
+      fontSize: '1.125rem',
+      fontWeight: '700',
+      cursor: 'pointer',
+      transition: 'all 0.3s ease',
+      boxShadow: '0 4px 15px rgba(249, 115, 22, 0.2)',
+      marginBottom: '1rem'
+    },
+    ctaDisclaimer: {
+      fontSize: '0.875rem',
+      color: 'rgba(255, 255, 255, 0.7)',
+      margin: 0,
+      maxWidth: '500px',
+      marginLeft: 'auto',
+      marginRight: 'auto'
+    },
+    // New VanEck-style layout styles
+    heroLeftContent: {
+      display: 'flex',
+      flexDirection: 'column' as const,
+      gap: '2rem'
+    },
+    fundHeader: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: '1rem',
+      marginBottom: '1.5rem'
+    },
+    fundLogo: {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      width: '60px',
+      height: '60px',
+      backgroundColor: '#f97316',
+      borderRadius: '50%'
+    },
+    fundLogoIcon: {
+      width: '32px',
+      height: '32px',
+      borderRadius: '50%'
+    },
+    fundTitle: {
+      flex: 1
+    },
+    fundName: {
+      fontSize: isMobile ? '1.5rem' : '2rem',
+      fontWeight: 'bold',
+      color: '#111827',
+      margin: 0,
+      marginBottom: '0.5rem'
+    },
+    fundSymbol: {
+      fontSize: '1.25rem',
+      color: '#6b7280',
+      margin: 0
+    },
+    fundDescription: {
+      fontSize: '1rem',
+      color: '#6b7280',
+      lineHeight: '1.6',
+      marginBottom: '2rem'
+    },
+    fundStats: {
+      display: 'grid',
+      gridTemplateColumns: '1fr 1fr',
+      gap: '2rem'
+    },
+    fundStat: {
+      display: 'flex',
+      flexDirection: 'column' as const
+    },
+    fundStatLabel: {
+      fontSize: '0.875rem',
+      color: '#6b7280',
+      marginBottom: '0.5rem'
+    },
+    fundStatValue: {
+      fontSize: '1.75rem',
+      fontWeight: 'bold',
+      color: '#111827'
+    },
+    investmentForm: {
+      backgroundColor: '#f8f9fa',
+      borderRadius: '1rem',
+      padding: '2rem',
+      border: '1px solid #e5e7eb'
+    },
+    investmentFormHeader: {
+      fontSize: '1.125rem',
+      fontWeight: '600',
+      color: '#111827',
+      marginBottom: '1.5rem'
+    },
+    investmentInputSection: {
+      marginBottom: '1.5rem'
+    },
+    investmentInputWrapper: {
+      display: 'flex',
+      alignItems: 'center',
+      backgroundColor: 'white',
+      border: '1px solid #d1d5db',
+      borderRadius: '0.5rem',
+      marginBottom: '1rem'
+    },
+    investmentInput: {
+      flex: 1,
+      padding: '1rem',
+      border: 'none',
+      fontSize: '1.5rem',
+      fontWeight: 'bold',
+      outline: 'none',
+      borderRadius: '0.5rem 0 0 0.5rem'
+    },
+    currencySelector: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: '0.5rem',
+      padding: '1rem',
+      backgroundColor: '#f9fafb',
+      borderLeft: '1px solid #d1d5db',
+      borderRadius: '0 0.5rem 0.5rem 0'
+    },
+    currencyIcon: {
+      fontSize: '1.25rem',
+      color: '#f59e0b'
+    },
+    currencyCode: {
+      fontSize: '0.875rem',
+      fontWeight: '600',
+      color: '#111827'
+    },
+    currencyDropdown: {
+      color: '#6b7280'
+    },
+    conversionArrow: {
+      fontSize: '1.5rem',
+      color: '#6b7280',
+      textAlign: 'center' as const,
+      margin: '0.5rem 0'
+    },
+    outputWrapper: {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      backgroundColor: 'white',
+      border: '1px solid #d1d5db',
+      borderRadius: '0.5rem',
+      padding: '1rem'
+    },
+    outputValue: {
+      fontSize: '1.25rem',
+      fontWeight: 'bold',
+      color: '#6b7280'
+    },
+    outputCurrency: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: '0.5rem'
+    },
+    outputCurrencyIcon: {
+      display: 'flex',
+      alignItems: 'center'
+    },
+    vaultTokenIcon: {
+      width: '20px',
+      height: '20px',
+      borderRadius: '50%'
+    },
+    investmentDisclaimer: {
+      fontSize: '0.75rem',
+      color: '#6b7280',
+      lineHeight: '1.4',
+      marginBottom: '1.5rem'
+    },
+    investButton: {
+      width: '100%',
+      padding: '1rem',
+      backgroundColor: '#0ea5e9',
+      color: 'white',
+      border: 'none',
+      borderRadius: '0.5rem',
+      fontSize: '1rem',
+      fontWeight: '600',
+      cursor: 'pointer',
+      transition: 'all 0.2s ease'
+    },
+    // Fund Information Section Styles
+    fundInfoSection: {
+      backgroundColor: 'white',
+      borderRadius: isMobile ? '0.5rem' : '1rem',
+      marginBottom: isMobile ? '1rem' : '2rem',
+      border: '1px solid #e5e7eb',
+      overflow: 'hidden'
+    },
+    fundTabs: {
+      display: 'flex',
+      backgroundColor: '#f9fafb',
+      borderBottom: '1px solid #e5e7eb'
+    },
+    fundTab: {
+      flex: 1,
+      padding: isMobile ? '1rem 0.75rem' : '1.25rem 1.5rem',
+      backgroundColor: 'transparent',
+      color: '#6b7280',
+      border: 'none',
+      fontSize: isMobile ? '0.875rem' : '1rem',
+      fontWeight: '500',
+      cursor: 'pointer',
+      transition: 'all 0.2s ease',
+      textAlign: 'center' as const
+    },
+    activeFundTab: {
+      backgroundColor: '#ffffff',
+      color: '#111827',
+      fontWeight: '600'
+    },
+    fundTabContent: {
+      padding: isMobile ? '1.5rem' : '2rem'
+    },
+    fundDetailsTab: {
+      display: 'flex',
+      flexDirection: 'column' as const,
+      gap: '2rem'
+    },
+    fundDetailsTopRow: {
+      display: 'grid',
+      gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',
+      gap: '3rem',
+      alignItems: 'start',
+      marginBottom: '2rem'
+    },
+    fundDetailsLeft: {
+      display: 'flex',
+      flexDirection: 'column' as const
+    },
+    fundDetailsRight: {
+      display: 'flex',
+      flexDirection: 'column' as const
+    },
+    performanceTab: {
+      display: 'flex',
+      flexDirection: 'column' as const,
+      gap: '2rem'
+    },
+    teamTab: {
+      display: 'flex',
+      flexDirection: 'column' as const,
+      gap: '2rem'
+    },
+    fundDetailSection: {
+      marginBottom: '1.5rem'
+    },
+    fundDetailTitle: {
+      fontSize: '1.5rem',
+      fontWeight: '700',
+      background: 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)',
+      WebkitBackgroundClip: 'text',
+      WebkitTextFillColor: 'transparent',
+      backgroundClip: 'text',
+      margin: 0,
+      marginBottom: '1.5rem',
+      letterSpacing: '-0.025em',
+      position: 'relative' as const,
+      display: 'inline-block',
+      '&::after': {
+        content: '""',
+        position: 'absolute' as const,
+        bottom: '-4px',
+        left: 0,
+        width: '30px',
+        height: '2px',
+        background: 'linear-gradient(90deg, #f97316, #ea580c)',
+        borderRadius: '2px'
+      }
+    },
+    fundDetailText: {
+      fontSize: '1rem',
+      color: '#6b7280',
+      lineHeight: '1.6',
+      marginBottom: '1rem'
+    },
+    metricsGrid: {
+      display: 'grid',
+      gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)',
+      gap: '1.5rem',
+      marginTop: '1.5rem'
+    },
+    strategiesLayout: {
+      display: 'grid',
+      gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',
+      gap: '2rem',
+      alignItems: 'start'
+    },
+    strategiesList: {
+      display: 'flex',
+      flexDirection: 'column' as const,
+      gap: '1rem'
+    },
+    strategyListItem: {
+      display: 'flex',
+      alignItems: 'flex-start',
+      gap: '0.75rem'
+    },
+    strategyBullet: {
+      color: '#f97316',
+      fontSize: '1.5rem',
+      lineHeight: '1'
+    },
+    strategyContent: {
+      flex: 1,
+      fontSize: '1rem',
+      color: '#374151',
+      lineHeight: '1.5'
+    },
+    chartContainer: {
+      backgroundColor: '#f8f9fa',
+      borderRadius: '0.75rem',
+      padding: '1rem',
+      border: '1px solid #e5e7eb'
+    },
+    chartTitle: {
+      fontSize: '1rem',
+      fontWeight: '600',
+      color: '#111827',
+      marginBottom: '1rem',
+      textAlign: 'center' as const
+    },
+    riskGrid: {
+      display: 'grid',
+      gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)',
+      gap: '1rem'
+    },
+    riskItem: {
+      padding: '1rem',
+      backgroundColor: '#f8f9fa',
+      borderRadius: '0.5rem',
+      border: '1px solid #e5e7eb',
+      fontSize: '0.875rem',
+      color: '#374151',
+      lineHeight: '1.5'
+    },
+    feesTable: {
+      border: '1px solid #e5e7eb',
+      borderRadius: '0.5rem',
+      overflow: 'hidden',
+      marginBottom: '1rem'
+    },
+    feesHeader: {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(5, 1fr)',
+      backgroundColor: '#f3f4f6'
+    },
+    feesHeaderCell: {
+      padding: '0.75rem',
+      fontSize: '0.875rem',
+      fontWeight: '600',
+      color: '#374151',
+      borderRight: '1px solid #e5e7eb',
+      textAlign: 'center' as const
+    },
+    feesRow: {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(5, 1fr)',
+      backgroundColor: 'white',
+      borderTop: '1px solid #e5e7eb'
+    },
+    feesCell: {
+      padding: '0.75rem',
+      fontSize: '0.875rem',
+      color: '#111827',
+      borderRight: '1px solid #e5e7eb',
+      textAlign: 'center' as const
+    },
+    additionalTerms: {
+      display: 'flex',
+      flexDirection: 'column' as const,
+      gap: '0.5rem'
+    },
+    termItem: {
+      fontSize: '0.875rem',
+      color: '#374151',
+      lineHeight: '1.5'
+    },
+    trackRecordNotice: {
+      display: 'flex',
+      alignItems: 'flex-start',
+      gap: '0.75rem',
+      padding: '1rem',
+      backgroundColor: '#eff6ff',
+      borderRadius: '0.5rem',
+      border: '1px solid #bfdbfe'
+    },
+    noticeIcon: {
+      fontSize: '1.25rem',
+      marginTop: '0.125rem'
+    },
+    performanceLayout: {
+      display: 'grid',
+      gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',
+      gap: '2rem',
+      alignItems: 'start'
+    },
+    performanceMetrics: {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(2, 1fr)',
+      gap: '1rem'
+    },
+    performanceTabMetricCard: {
+      padding: '1.5rem',
+      backgroundColor: '#f8f9fa',
+      borderRadius: '0.75rem',
+      border: '1px solid #e5e7eb',
+      textAlign: 'center' as const
+    },
+    performanceMetricValue: {
+      fontSize: '1.75rem',
+      fontWeight: 'bold',
+      color: '#111827',
+      marginBottom: '0.5rem'
+    },
+    performanceMetricLabel: {
+      fontSize: '0.875rem',
+      color: '#6b7280',
+      fontWeight: '500'
+    },
+    auditedNote: {
+      marginTop: '1rem',
+      padding: '0.75rem',
+      backgroundColor: '#f0fdf4',
+      borderRadius: '0.5rem',
+      border: '1px solid #bbf7d0',
+      fontSize: '0.875rem',
+      color: '#166534'
+    },
+    teamGrid: {
+      display: 'grid',
+      gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)',
+      gap: '1rem'
+    },
+    teamMember: {
+      padding: '1.5rem',
+      backgroundColor: '#f8f9fa',
+      borderRadius: '0.75rem',
+      border: '1px solid #e5e7eb',
+      textAlign: 'center' as const
+    },
+    teamMemberRole: {
+      fontSize: '0.875rem',
+      color: '#6b7280',
+      marginBottom: '0.5rem',
+      fontWeight: '500'
+    },
+    teamMemberName: {
+      fontSize: '1.125rem',
+      fontWeight: 'bold',
+      color: '#111827'
+    },
+    governanceGrid: {
+      display: 'flex',
+      flexDirection: 'column' as const,
+      gap: '1rem'
+    },
+    governanceItem: {
+      padding: '1rem',
+      backgroundColor: '#f8f9fa',
+      borderRadius: '0.5rem',
+      border: '1px solid #e5e7eb',
+      fontSize: '0.875rem',
+      color: '#374151',
+      lineHeight: '1.5'
+    },
+    serviceProvidersGrid: {
+      display: 'grid',
+      gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)',
+      gap: '1rem'
+    },
+    serviceProvider: {
+      padding: '1.25rem',
+      backgroundColor: '#f8f9fa',
+      borderRadius: '0.75rem',
+      border: '1px solid #e5e7eb',
+      textAlign: 'center' as const
+    },
+    serviceProviderRole: {
+      fontSize: '0.875rem',
+      color: '#6b7280',
+      marginBottom: '0.5rem',
+      fontWeight: '500'
+    },
+    serviceProviderName: {
+      fontSize: '1rem',
+      fontWeight: 'bold',
+      color: '#111827',
+      lineHeight: '1.4'
     }
   };
 
@@ -1279,879 +2007,518 @@ export default function VaultDetailPage() {
       <main style={styles.main}>
         {/* Hero Section */}
         <section style={styles.heroSection}>
-          {/* Two Column Layout */}
           <div style={styles.heroTop}>
-            {/* Left Column */}
+            {/* Left Column - Fund Information */}
             <div style={styles.heroLeft}>
-              <div>
-                <div 
-                  style={{
-                    ...styles.vaultLiveBadge,
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease'
-                  }}
-                  onClick={() => {
-                    const etherscanUrl = `https://etherscan.io/address/${vaultDetail.address}`;
-                    window.open(etherscanUrl, '_blank');
-                  }}
+              <div style={styles.heroLeftContent}>
+                {/* Fund Header */}
+                <div style={styles.fundHeader}>
+                  <div style={styles.fundLogo}>
+                    <img 
+                      src="https://app.lagoon.finance/logo_cbBTC.png" 
+                      alt="cbBTC" 
+                      style={styles.fundLogoIcon}
+                    />
+                  </div>
+                  <div style={styles.fundTitle}>
+                    <h1 style={styles.fundName}>{vaultDetail.name}</h1>
+                    <div style={styles.fundSymbol}>("{vaultDetail.name?.substring(0, 5).toUpperCase() || 'VAULT'}")</div>
+                  </div>
+                </div>
+
+                {/* Fund Description */}
+                <div style={styles.fundDescription}>
+                  {vaultDetail.description}
+                </div>
+
+                {/* Fund Stats */}
+                <div style={styles.fundStats}>
+                  <div style={styles.fundStat}>
+                    <div style={styles.fundStatLabel}>Minimum investment</div>
+                    <div style={styles.fundStatValue}>0.001 BTC</div>
+                  </div>
+                  <div style={styles.fundStat}>
+                    <div style={styles.fundStatLabel}>AUM</div>
+                    <div style={styles.fundStatValue}>5.28 BTC</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Right Column - Investment Form */}
+            <div style={styles.heroRight}>
+              <div style={styles.investmentForm}>
+                <div style={styles.investmentFormHeader}>
+                  Enter your investment
+                </div>
+                
+                <div style={styles.investmentInputSection}>
+                  <div style={styles.investmentInputWrapper}>
+                    <input
+                      type="number"
+                      placeholder="0"
+                      value={depositAmount}
+                      onChange={(e) => setDepositAmount(e.target.value)}
+                      style={styles.investmentInput}
+                      step="0.001"
+                      min="0.001"
+                    />
+                    <div style={styles.currencySelector}>
+                      <span style={styles.currencyIcon}>₿</span>
+                      <span style={styles.currencyCode}>BTC</span>
+                      <svg style={styles.currencyDropdown} width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M6 9l6 6 6-6"/>
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+
+                <div style={styles.investmentDisclaimer}>
+                  This is an estimate of the units you will receive subject to funds arriving during the current investment phase and the exchange rate applied to the funds.
+                </div>
+
+                <button 
+                  style={styles.investButton}
+                  onClick={() => setIsContactModalOpen(true)}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = 'rgba(16, 185, 129, 0.15)';
+                    e.currentTarget.style.backgroundColor = '#0891b2';
                     e.currentTarget.style.transform = 'translateY(-1px)';
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = 'rgba(16, 185, 129, 0.1)';
+                    e.currentTarget.style.backgroundColor = '#0ea5e9';
                     e.currentTarget.style.transform = 'translateY(0px)';
                   }}
                 >
-                  <style>{`
-                    @keyframes blink {
-                      0%, 100% { opacity: 1; }
-                      50% { opacity: 0.3; }
-                    }
-                    .blinking-dot {
-                      animation: blink 1.5s infinite;
-                    }
-                  `}</style>
-                  <div 
-                    className="blinking-dot"
-                    style={styles.blinkingDot}
-                  ></div>
-                  <span style={{ marginLeft: '0.5rem' }}>VAULT LIVE</span>
-                </div>
-                <h1 style={styles.vaultName}>{vaultDetail.name}</h1>
-                {/* Small Prospectus Link */}
-                <div style={{ marginBottom: '1rem' }}>
-                  <Link 
-                    href={vaultDetail.prospectusUrl || "#"} 
-                    style={{
-                      fontSize: '0.875rem',
-                      color: '#3b82f6',
-                      textDecoration: 'none',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '0.25rem',
-                      transition: 'color 0.2s ease'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.color = '#1d4ed8';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.color = '#3b82f6';
-                    }}
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                      <polyline points="14,2 14,8 20,8"></polyline>
-                      <line x1="16" y1="13" x2="8" y2="13"></line>
-                      <line x1="16" y1="17" x2="8" y2="17"></line>
-                      <polyline points="10,9 9,9 8,9"></polyline>
-                    </svg>
-                    View Fund Prospectus
-                  </Link>
-                </div>
-                <div style={styles.vaultSummary}>
-                  <div 
-                    style={{
-                      ...styles.vaultSummaryText,
-                      ...(showFullDescription ? {} : styles.vaultSummaryCollapsed)
-                    }}
-                  >
-                    {vaultDetail.description}
-                  </div>
-                  <button
-                    onClick={() => setShowFullDescription(!showFullDescription)}
-                    style={styles.expandButton}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.color = '#f97316';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.color = '#6b7280';
-                    }}
-                  >
-                    {showFullDescription ? 'Show less' : 'Show more'}
-                  </button>
-                                </div>
-                
-                                 {/* Stats Layout */}
-                 {/* Target APY - Full Width */}
-                 <div style={styles.fullWidthStat}>
-                   <div 
-                     style={{...styles.fullWidthStatCard, ...styles.statCardWithTooltip}}
-                     onMouseEnter={() => setHoveredTooltip('apy')}
-                     onMouseLeave={() => setHoveredTooltip(null)}
-                   >
-                     <div style={styles.inlineStatLabel}>Target APY</div>
-                     <div style={styles.inlineStatValueLarge}>{vaultDetail.apr?.toFixed(1)}%</div>
-                     <div style={{
-                       ...styles.tooltip, 
-                       ...(hoveredTooltip === 'apy' ? styles.tooltipVisible : {})
-                     }}>
-                       Annual Percentage Yield - The expected yearly return on your investment
-                       <div style={styles.tooltipArrow}></div>
-                     </div>
-                   </div>
-                 </div>
-
-                 {/* Three Column Stats */}
-                 <div style={styles.inlineStats}>
-                   <div 
-                     style={{...styles.inlineStatCard, ...styles.statCardWithTooltip}}
-                     onMouseEnter={() => setHoveredTooltip('minimum')}
-                     onMouseLeave={() => setHoveredTooltip(null)}
-                   >
-                     <div style={styles.inlineStatLabel}>Minimum Investment</div>
-                     <div style={styles.tokenValue}>
-                       <img 
-                         src="https://app.lagoon.finance/logo_cbBTC.png" 
-                         alt="cbBTC" 
-                         style={styles.tokenIcon}
-                       />
-                       0.001 cbBTC
-                     </div>
-                     <div style={{
-                       ...styles.tooltip, 
-                       ...(hoveredTooltip === 'minimum' ? styles.tooltipVisible : {})
-                     }}>
-                       The smallest amount required to start investing in this vault
-                       <div style={styles.tooltipArrow}></div>
-                     </div>
-                   </div>
-                   <div 
-                     style={{...styles.inlineStatCard, ...styles.statCardWithTooltip}}
-                     onMouseEnter={() => setHoveredTooltip('tvl')}
-                     onMouseLeave={() => setHoveredTooltip(null)}
-                   >
-                     <div style={styles.inlineStatLabel}>Total Value Locked</div>
-                     <div style={styles.tokenValue}>
-                       <img 
-                         src="https://app.lagoon.finance/logo_cbBTC.png" 
-                         alt="cbBTC" 
-                         style={styles.tokenIcon}
-                       />
-                       5.28 cbBTC
-                     </div>
-                     <div style={{
-                       ...styles.tooltip, 
-                       ...(hoveredTooltip === 'tvl' ? styles.tooltipVisible : {})
-                     }}>
-                       Total amount of assets currently deposited in this vault
-                       <div style={styles.tooltipArrow}></div>
-                     </div>
-                   </div>
-                   <div 
-                     style={{...styles.inlineStatCard, ...styles.statCardWithTooltip}}
-                     onMouseEnter={() => setHoveredTooltip('risk')}
-                     onMouseLeave={() => setHoveredTooltip(null)}
-                   >
-                     <div style={styles.inlineStatLabel}>Risk Level</div>
-                     <div style={styles.riskLevelContainer}>
-                       <div style={{
-                         ...styles.riskLevelText,
-                         color: vaultDetail.riskLevel === 'Low' ? '#10b981' : vaultDetail.riskLevel === 'Medium' ? '#f59e0b' : '#ef4444'
-                       }}>{vaultDetail.riskLevel}</div>
-                       <div style={styles.riskLevelBar}>
-                         <div style={{
-                           ...styles.riskLevelFill,
-                           width: vaultDetail.riskLevel === 'Low' ? '33%' : vaultDetail.riskLevel === 'Medium' ? '66%' : '100%',
-                           backgroundColor: vaultDetail.riskLevel === 'Low' ? '#10b981' : vaultDetail.riskLevel === 'Medium' ? '#f59e0b' : '#ef4444'
-                         }}></div>
-                       </div>
-                     </div>
-                     <div style={{
-                       ...styles.tooltip, 
-                       ...(hoveredTooltip === 'risk' ? styles.tooltipVisible : {})
-                     }}>
-                       Risk assessment based on strategy complexity and volatility
-                       <div style={styles.tooltipArrow}></div>
-                     </div>
-                   </div>
-                 </div>
-
-                 {/* Invest Now Button */}
-                 <div style={{
-                   marginTop: '2rem',
-                   display: 'flex',
-                   justifyContent: 'center'
-                 }}>
-                   <button
-                     onClick={() => {
-                       const getStartedSection = document.getElementById('get-started-section');
-                       if (getStartedSection) {
-                         getStartedSection.scrollIntoView({ 
-                           behavior: 'smooth',
-                           block: 'start'
-                         });
-                       }
-                     }}
-                     style={{
-                       display: 'inline-flex',
-                       alignItems: 'center',
-                       gap: '0.75rem',
-                       padding: '1rem 2rem',
-                       backgroundColor: '#f97316',
-                       color: 'white',
-                       border: 'none',
-                       borderRadius: '0.75rem',
-                       fontSize: '1.125rem',
-                       fontWeight: '600',
-                       cursor: 'pointer',
-                       transition: 'all 0.2s ease',
-                       boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-                     }}
-                     onMouseEnter={(e) => {
-                       e.currentTarget.style.backgroundColor = '#ea580c';
-                       e.currentTarget.style.transform = 'translateY(-2px)';
-                       e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.1)';
-                     }}
-                     onMouseLeave={(e) => {
-                       e.currentTarget.style.backgroundColor = '#f97316';
-                       e.currentTarget.style.transform = 'translateY(0px)';
-                       e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1)';
-                     }}
-                   >
-                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                       <circle cx="12" cy="12" r="10"/>
-                       <polyline points="12,6 12,12 16,14"/>
-                     </svg>
-                     Invest Now
-                   </button>
-                 </div>
-
-              </div>
-
-            </div>
-
-            {/* Right Column - Modern Chart Interface */}
-            <div style={styles.heroRight}>
-              <div style={styles.modernChart}>
-                {/* Chart Tabs */}
-                <div style={styles.chartTabs}>
-                  <button
-                    onClick={() => setActiveChartTab('price')}
-                    style={{
-                      ...styles.chartTab,
-                      ...(activeChartTab === 'price' ? styles.activeChartTab : {})
-                    }}
-                  >
-                    Price per share (cbBTC)
-                  </button>
-                  <button
-                    onClick={() => setActiveChartTab('tvl')}
-                    style={{
-                      ...styles.chartTab,
-                      ...(activeChartTab === 'tvl' ? styles.activeChartTab : {})
-                    }}
-                  >
-                    TVL
-                  </button>
-                </div>
-
-                {/* Chart Content */}
-                <div style={styles.chartContent}>
-                  {/* Value Display */}
-                  <div style={styles.chartValueSection}>
-                    <div style={styles.chartIcon}>
-                      <img 
-                        src="https://app.lagoon.finance/logo_cbBTC.png" 
-                        alt="cbBTC" 
-                        style={styles.chartTokenIcon}
-                      />
-                    </div>
-                    <div style={styles.chartValues}>
-                      <div style={styles.chartMainValue}>
-                        {activeChartTab === 'price' 
-                          ? `${currentValue.toFixed(6)} cbBTC`
-                          : `$${(currentValue / 1000000).toFixed(2)}M`
-                        }
-                      </div>
-                      <div style={styles.chartSubValue}>
-                        {activeChartTab === 'price' 
-                          ? `1 cbBTC ≈ $${(currentValue * 65000).toLocaleString()}`
-                          : `${changePercent}% ${Number(changePercent) >= 0 ? '↗' : '↘'}`
-                        }
-                      </div>
-                    </div>
-                    
-                    {/* Date Range */}
-                    <div style={styles.dateRange}>
-                      📅 {chartData[0]?.date} - {chartData[chartData.length - 1]?.date}
-                    </div>
-                  </div>
-
-                  {/* Time Range Selector */}
-                  <div style={styles.timeRangeSelector}>
-                    {['1D', '1W', '1M', '1Y', 'ALL'].map((range) => (
-                      <button
-                        key={range}
-                        onClick={() => setChartTimeRange(range)}
-                        style={{
-                          ...styles.timeRangeButton,
-                          ...(chartTimeRange === range ? styles.activeTimeRange : {})
-                        }}
-                      >
-                        {range}
-                      </button>
-                    ))}
-                  </div>
-
-                  {/* Chart Area */}
-                  <div style={styles.chartArea}>
-                    <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart
-                        data={chartData}
-                        margin={{ top: 10, right: 30, left: 0, bottom: 10 }}
-                      >
-                        <defs>
-                          <linearGradient id="orangeGradient" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="#f97316" stopOpacity={0.8}/>
-                            <stop offset="100%" stopColor="#f97316" stopOpacity={0.1}/>
-                          </linearGradient>
-                        </defs>
-                        <CartesianGrid 
-                          strokeDasharray="3 3" 
-                          stroke="#e5e7eb" 
-                          horizontal={true}
-                          vertical={false}
-                        />
-                        <XAxis 
-                          dataKey="date" 
-                          stroke="#6b7280"
-                          fontSize="12px"
-                          axisLine={false}
-                          tickLine={false}
-                        />
-                        <YAxis
-                          stroke="#6b7280"
-                          fontSize="12px"
-                          axisLine={false}
-                          tickLine={false}
-                          domain={['dataMin * 0.999', 'dataMax * 1.001']}
-                        />
-                        <Tooltip 
-                          contentStyle={{
-                            backgroundColor: '#ffffff',
-                            border: '1px solid #e5e7eb',
-                            borderRadius: '0.5rem',
-                            color: '#111827',
-                            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-                          }}
-                        />
-                        <Area
-                          type="stepAfter"
-                          dataKey="value"
-                          stroke="#f97316"
-                          strokeWidth={2}
-                          fill="url(#orangeGradient)"
-                          dot={false}
-                          activeDot={{ r: 4, stroke: '#f97316', strokeWidth: 2 }}
-                        />
-                      </AreaChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
+                  Invest
+                </button>
               </div>
             </div>
           </div>
+        </section>
 
-          {/* Test Button (only if needed) */}
-          {debugAppMode === 'test' && (
-            <div style={{ marginTop: '1rem', textAlign: 'center' }}>
-              <button
-                onClick={() => setUserPosition(prev => ({
-                  ...prev,
-                  hasDeposited: !prev.hasDeposited,
-                  cbBTCBalance: prev.hasDeposited ? '0' : '0.125'
-                }))}
-                style={{
-                  padding: '0.5rem 1rem',
-                  backgroundColor: '#3b82f6',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '0.25rem',
-                  fontSize: '0.75rem',
-                  cursor: 'pointer'
-                }}
-              >
-                Test: Toggle User Position
-              </button>
-            </div>
-          )}
+        {/* Fund Information Section */}
+        <section style={styles.fundInfoSection}>
+          {/* Tab Navigation */}
+          <div style={styles.fundTabs}>
+            <button
+              onClick={() => setActiveFundTab('details')}
+              style={{
+                ...styles.fundTab,
+                ...(activeFundTab === 'details' ? styles.activeFundTab : {})
+              }}
+            >
+              Fund Details
+            </button>
+            <button
+              onClick={() => setActiveFundTab('performance')}
+              style={{
+                ...styles.fundTab,
+                ...(activeFundTab === 'performance' ? styles.activeFundTab : {})
+              }}
+            >
+              Historical Performance & Track Record
+            </button>
+            <button
+              onClick={() => setActiveFundTab('team')}
+              style={{
+                ...styles.fundTab,
+                ...(activeFundTab === 'team' ? styles.activeFundTab : {})
+              }}
+            >
+              About Atitlan & Team
+            </button>
+          </div>
+
+          {/* Tab Content */}
+          <div style={styles.fundTabContent}>
+            {activeFundTab === 'details' && (
+              <div style={styles.fundDetailsTab}>
+                {/* Two Column Layout */}
+                <div style={styles.fundDetailsTopRow}>
+                  {/* Left Column: Fund Name & Objective */}
+                  <div style={styles.fundDetailsLeft}>
+                    <div style={styles.fundDetailSection}>
+                      <h3 style={styles.fundDetailTitle}>Fund Name</h3>
+                      <p style={styles.fundDetailText}>Atitlan Bitcoin Multi-Strat Fund</p>
+                      
+                      <h3 style={styles.fundDetailTitle}>Objective</h3>
+                      <p style={styles.fundDetailText}>
+                        To generate consistent bitcoin-denominated returns for BTC holders who want to preserve their long-term HODL strategy while earning low-risk yield on their bitcoin holdings.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Right Column: Target Return & Risk Metrics */}
+                  <div style={styles.fundDetailsRight}>
+                    <div style={styles.fundDetailSection}>
+                      <h3 style={styles.fundDetailTitle}>Target Return & Risk Metrics</h3>
+                      <div style={styles.metricsGrid}>
+                        <div 
+                          style={styles.metricCard}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor = '#f97316';
+                            const label = e.currentTarget.querySelector('.metric-label') as HTMLElement;
+                            const value = e.currentTarget.querySelector('.metric-value') as HTMLElement;
+                            if (label) label.style.color = 'white';
+                            if (value) value.style.color = 'white';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor = 'white';
+                            const label = e.currentTarget.querySelector('.metric-label') as HTMLElement;
+                            const value = e.currentTarget.querySelector('.metric-value') as HTMLElement;
+                            if (label) label.style.color = '#111827';
+                            if (value) value.style.color = '#111827';
+                          }}
+                        >
+                          <div className="metric-label" style={styles.metricLabel}>Annual Net Return Target</div>
+                          <div className="metric-value" style={styles.metricValue}>12%+ (in BTC)</div>
+                        </div>
+                        <div 
+                          style={styles.metricCard}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor = '#f97316';
+                            const label = e.currentTarget.querySelector('.metric-label') as HTMLElement;
+                            const value = e.currentTarget.querySelector('.metric-value') as HTMLElement;
+                            if (label) label.style.color = 'white';
+                            if (value) value.style.color = 'white';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor = 'white';
+                            const label = e.currentTarget.querySelector('.metric-label') as HTMLElement;
+                            const value = e.currentTarget.querySelector('.metric-value') as HTMLElement;
+                            if (label) label.style.color = '#111827';
+                            if (value) value.style.color = '#111827';
+                          }}
+                        >
+                          <div className="metric-label" style={styles.metricLabel}>Maximum Monthly Drawdown</div>
+                          <div className="metric-value" style={styles.metricValue}>2%</div>
+                        </div>
+                        <div 
+                          style={styles.metricCard}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor = '#f97316';
+                            const label = e.currentTarget.querySelector('.metric-label') as HTMLElement;
+                            const value = e.currentTarget.querySelector('.metric-value') as HTMLElement;
+                            if (label) label.style.color = 'white';
+                            if (value) value.style.color = 'white';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor = 'white';
+                            const label = e.currentTarget.querySelector('.metric-label') as HTMLElement;
+                            const value = e.currentTarget.querySelector('.metric-value') as HTMLElement;
+                            if (label) label.style.color = '#111827';
+                            if (value) value.style.color = '#111827';
+                          }}
+                        >
+                          <div className="metric-label" style={styles.metricLabel}>Return Type</div>
+                          <div className="metric-value" style={styles.metricValue}>BTC-denominated, market-neutral</div>
+                        </div>
+                        <div 
+                          style={styles.metricCard}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor = '#f97316';
+                            const label = e.currentTarget.querySelector('.metric-label') as HTMLElement;
+                            const value = e.currentTarget.querySelector('.metric-value') as HTMLElement;
+                            if (label) label.style.color = 'white';
+                            if (value) value.style.color = 'white';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor = 'white';
+                            const label = e.currentTarget.querySelector('.metric-label') as HTMLElement;
+                            const value = e.currentTarget.querySelector('.metric-value') as HTMLElement;
+                            if (label) label.style.color = '#111827';
+                            if (value) value.style.color = '#111827';
+                          }}
+                        >
+                          <div className="metric-label" style={styles.metricLabel}>Volatility</div>
+                          <div className="metric-value" style={styles.metricValue}>Low, uncorrelated to BTC price (correlation cap at 0.4)</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Investment Strategies */}
+                <div style={styles.fundDetailSection}>
+                  <h3 style={styles.fundDetailTitle}>Investment Strategies</h3>
+                  <p style={styles.fundDetailText}>A diversified mix of:</p>
+                  
+                  <div style={styles.strategiesLayout}>
+                    <div style={styles.strategiesList}>
+                      <div style={styles.strategyListItem}>
+                        <div style={styles.strategyBullet}>•</div>
+                        <div style={styles.strategyContent}>
+                          <strong>Short-Term Directional:</strong> long/short, momentum, mean-reversion
+                        </div>
+                      </div>
+                      <div style={styles.strategyListItem}>
+                        <div style={styles.strategyBullet}>•</div>
+                        <div style={styles.strategyContent}>
+                          <strong>Market-Neutral:</strong> arbitrage, basis trading, HFT
+                        </div>
+                      </div>
+                      <div style={styles.strategyListItem}>
+                        <div style={styles.strategyBullet}>•</div>
+                        <div style={styles.strategyContent}>
+                          <strong>Other Tactics:</strong> options trading
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Strategy Allocation Pie Chart */}
+                    <div style={styles.chartContainer}>
+                      <div style={styles.chartTitle}>Strategy Allocation</div>
+                      <ResponsiveContainer width="100%" height={200}>
+                        <PieChart>
+                          <Pie
+                            data={[
+                              { name: 'Short-Term Directional', value: 45, fill: '#f97316' },
+                              { name: 'Market-Neutral', value: 40, fill: '#0ea5e9' },
+                              { name: 'Options Trading', value: 15, fill: '#10b981' }
+                            ]}
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={40}
+                            outerRadius={80}
+                            dataKey="value"
+                          >
+                          </Pie>
+                          <Tooltip formatter={(value) => [`${value}%`, '']} />
+                          <Legend />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                  
+                  <p style={styles.fundDetailText}>
+                    All strategies are executed via segregated managed accounts with institutional-grade security.
+                  </p>
+                </div>
+
+                {/* Risk Management */}
+                <div style={styles.fundDetailSection}>
+                  <h3 style={styles.fundDetailTitle}>Risk Management</h3>
+                  <div style={styles.riskGrid}>
+                    <div style={styles.riskItem}>
+                      <strong>Counterparty Risk:</strong> Minimized via mirror-trading through regulated custodians
+                    </div>
+                    <div style={styles.riskItem}>
+                      <strong>Pod Risk:</strong> SMAs with API-limited access, full control retained by fund
+                    </div>
+                    <div style={styles.riskItem}>
+                      <strong>Strategy Risk:</strong> Live-only track record due diligence, continuous monitoring, and dynamic allocation updates
+                    </div>
+                    <div style={styles.riskItem}>
+                      <strong>BTC Price Risk:</strong> Not a fund risk due to BTC-denomination of the product
+                    </div>
+                  </div>
+                </div>
+
+                {/* Fees & Terms */}
+                <div style={styles.fundDetailSection}>
+                  <h3 style={styles.fundDetailTitle}>Fees & Terms</h3>
+                  <div style={styles.feesTable}>
+                    <div style={styles.feesHeader}>
+                      <div style={styles.feesHeaderCell}>Share Class</div>
+                      <div style={styles.feesHeaderCell}>Management Fee</div>
+                      <div style={styles.feesHeaderCell}>Performance Fee</div>
+                      <div style={styles.feesHeaderCell}>Minimum Investment</div>
+                      <div style={styles.feesHeaderCell}>Lock-up</div>
+                    </div>
+                    <div style={styles.feesRow}>
+                      <div style={styles.feesCell}>Early Bird</div>
+                      <div style={styles.feesCell}>1.5%</div>
+                      <div style={styles.feesCell}>15%</div>
+                      <div style={styles.feesCell}>10 BTC</div>
+                      <div style={styles.feesCell}>6 months (3% break fee)</div>
+                    </div>
+                    <div style={styles.feesRow}>
+                      <div style={styles.feesCell}>Standard</div>
+                      <div style={styles.feesCell}>2%</div>
+                      <div style={styles.feesCell}>20%</div>
+                      <div style={styles.feesCell}>-</div>
+                      <div style={styles.feesCell}>-</div>
+                    </div>
+                  </div>
+                  
+                  <div style={styles.additionalTerms}>
+                    <div style={styles.termItem}><strong>Performance Fee:</strong> Only based on BTC gains (not USD)</div>
+                    <div style={styles.termItem}><strong>Liquidity:</strong> Monthly, with 30-day notice</div>
+                    <div style={styles.termItem}><strong>High Water Mark:</strong> Yes</div>
+                    <div style={styles.termItem}><strong>Fund Impact:</strong> Up to 3% of proceeds allocated to Bitcoin education and Bitcoin Core development initiatives</div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeFundTab === 'performance' && (
+              <div style={styles.performanceTab}>
+                {/* Fund Track Record */}
+                <div style={styles.fundDetailSection}>
+                  <h3 style={styles.fundDetailTitle}>Fund Track Record</h3>
+                  <div style={styles.trackRecordNotice}>
+                    <div style={styles.noticeIcon}>ℹ️</div>
+                    <p style={styles.fundDetailText}>
+                      This is a newly launched Bitcoin-denominated fund and does not yet have an independent performance history.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Reference Fund Performance */}
+                <div style={styles.fundDetailSection}>
+                  <h3 style={styles.fundDetailTitle}>Reference Fund (Atitlan Diversified Alpha Fund)</h3>
+                  <p style={styles.fundDetailText}>
+                    Operational since 2018 with the following key performance metrics:
+                  </p>
+                  
+                  <div style={styles.performanceLayout}>
+                    <div style={styles.performanceMetrics}>
+                      <div style={styles.performanceTabMetricCard}>
+                        <div style={styles.performanceMetricValue}>20%</div>
+                        <div style={styles.performanceMetricLabel}>Average Yearly Net Return</div>
+                      </div>
+                      <div style={styles.performanceTabMetricCard}>
+                        <div style={styles.performanceMetricValue}>1.4%</div>
+                        <div style={styles.performanceMetricLabel}>Average Monthly Net Return</div>
+                      </div>
+                      <div style={styles.performanceTabMetricCard}>
+                        <div style={styles.performanceMetricValue}>76%</div>
+                        <div style={styles.performanceMetricLabel}>Positive Months</div>
+                      </div>
+                      <div style={styles.performanceTabMetricCard}>
+                        <div style={styles.performanceMetricValue}>-0.1</div>
+                        <div style={styles.performanceMetricLabel}>BTC Correlation</div>
+                      </div>
+                    </div>
+                    
+                    {/* Performance Chart */}
+                    <div style={styles.chartContainer}>
+                      <div style={styles.chartTitle}>Monthly Returns Distribution</div>
+                      <ResponsiveContainer width="100%" height={250}>
+                        <BarChart data={[
+                          { month: 'Jan', return: 1.2 },
+                          { month: 'Feb', return: 2.1 },
+                          { month: 'Mar', return: 0.8 },
+                          { month: 'Apr', return: 1.9 },
+                          { month: 'May', return: 1.1 },
+                          { month: 'Jun', return: 1.7 },
+                          { month: 'Jul', return: 1.3 },
+                          { month: 'Aug', return: 0.9 },
+                          { month: 'Sep', return: 2.2 },
+                          { month: 'Oct', return: 1.5 },
+                          { month: 'Nov', return: 1.8 },
+                          { month: 'Dec', return: 1.4 }
+                        ]}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="month" />
+                          <YAxis />
+                          <Tooltip formatter={(value) => [`${value}%`, 'Monthly Return']} />
+                          <Bar dataKey="return" fill="#10b981" />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                  
+                  <div style={styles.auditedNote}>
+                    <strong>Audited Track Record:</strong> 7 years
+                  </div>
+                  <p style={styles.fundDetailText}>
+                    This fund has served as a benchmark and foundation for developing the Multi-Strat fund approach.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {activeFundTab === 'team' && (
+              <div style={styles.teamTab}>
+                {/* Firm Overview */}
+                <div style={styles.fundDetailSection}>
+                  <h3 style={styles.fundDetailTitle}>Firm Overview</h3>
+                  <p style={styles.fundDetailText}>
+                    Atitlan Asset Management has been a pioneer in crypto market-neutral strategies since 2017. Originally formed as YRD Capital, the team evolved to form Atitlan Diversified Alpha Fund and expanded into BTC-denominated products by 2021.
+                  </p>
+                </div>
+
+                {/* Key Team Members */}
+                <div style={styles.fundDetailSection}>
+                  <h3 style={styles.fundDetailTitle}>Key Team Members</h3>
+                  <div style={styles.teamGrid}>
+                    <div style={styles.teamMember}>
+                      <div style={styles.teamMemberRole}>Founder & CEO/CIO</div>
+                      <div style={styles.teamMemberName}>Yuval Reisman</div>
+                    </div>
+                    <div style={styles.teamMember}>
+                      <div style={styles.teamMemberRole}>Chairman</div>
+                      <div style={styles.teamMemberName}>Ian Morley</div>
+                    </div>
+                    <div style={styles.teamMember}>
+                      <div style={styles.teamMemberRole}>Partner & CRO</div>
+                      <div style={styles.teamMemberName}>Edward Misrahi</div>
+                    </div>
+                    <div style={styles.teamMember}>
+                      <div style={styles.teamMemberRole}>COO and Partnership Manager</div>
+                      <div style={styles.teamMemberName}>Alon Karniel</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Advisory & Governance */}
+                <div style={styles.fundDetailSection}>
+                  <h3 style={styles.fundDetailTitle}>Advisory & Governance</h3>
+                  <div style={styles.governanceGrid}>
+                    <div style={styles.governanceItem}>
+                      <strong>Investment Manager:</strong> Starmark Investment Management Limited (UK FCA regulated)
+                    </div>
+                    <div style={styles.governanceItem}>
+                      <strong>Advisory Committee:</strong> Yuval Reisman, Ian Morley, Edward Misrahi
+                    </div>
+                    <div style={styles.governanceItem}>
+                      <strong>Fund Directors:</strong> Yuval Reisman, Olivier Chevillon, Miles Perryman
+                    </div>
+                  </div>
+                </div>
+
+                {/* Service Providers */}
+                <div style={styles.fundDetailSection}>
+                  <h3 style={styles.fundDetailTitle}>Service Providers</h3>
+                  <div style={styles.serviceProvidersGrid}>
+                    <div style={styles.serviceProvider}>
+                      <div style={styles.serviceProviderRole}>Auditor</div>
+                      <div style={styles.serviceProviderName}>KPMG</div>
+                    </div>
+                    <div style={styles.serviceProvider}>
+                      <div style={styles.serviceProviderRole}>Administrator</div>
+                      <div style={styles.serviceProviderName}>NAV Consulting</div>
+                    </div>
+                    <div style={styles.serviceProvider}>
+                      <div style={styles.serviceProviderRole}>Custodians</div>
+                      <div style={styles.serviceProviderName}>Komainu & Zodia Custody<br/>(UK FCA registered)</div>
+                    </div>
+                    <div style={styles.serviceProvider}>
+                      <div style={styles.serviceProviderRole}>Banking Partner</div>
+                      <div style={styles.serviceProviderName}>Burling Bank</div>
+                    </div>
+                    <div style={styles.serviceProvider}>
+                      <div style={styles.serviceProviderRole}>Legal Counsel</div>
+                      <div style={styles.serviceProviderName}>Bolder (Cayman)</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
         </section>
 
         {/* Two Column Layout Starts */}
         <div style={styles.twoColumnLayout}>
           {/* Left Column */}
           <div>
-            {/* Fee Structure & Additional Information */}
-            <section style={styles.feeSection}>
-              <div style={styles.feeGrid}>
-                <div style={styles.feeItem}>
-                  <div style={styles.feeLabel}>Management Fee</div>
-                  <div style={styles.feeValue}>{vaultDetail.managementFee || '2%'}</div>
-                </div>
-                <div style={styles.feeItem}>
-                  <div style={styles.feeLabel}>Performance Fee</div>
-                  <div style={styles.feeValue}>{vaultDetail.performanceFee || '25%'}</div>
-                </div>
-                <div style={styles.feeItem}>
-                  <div style={styles.feeLabel}>Early Redemption</div>
-                  <div style={styles.feeValue}>{vaultDetail.breakFee || '5%'}</div>
-                </div>
-                <div style={styles.feeItem}>
-                  <div style={styles.feeLabel}>Notice Period</div>
-                  <div style={styles.feeValue}>{vaultDetail.additionalInfo?.withdrawalNotice || '60 days'}</div>
-                </div>
-                <div style={styles.feeItem}>
-                  <div style={styles.feeLabel}>Custody</div>
-                  <div style={styles.feeValue}>{vaultDetail.custodySolution || 'Copper.co'}</div>
-                  <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>{vaultDetail.additionalInfo?.custodyDetails || 'Multi-Party Computation (MPC)'}</div>
-                </div>
-                <div style={styles.feeItem}>
-                  <div style={styles.feeLabel}>TVL Limit</div>
-                  <div style={styles.feeValue}>{vaultDetail.tvlLimit || '2,500 BTC'}</div>
-                </div>
-                <div style={styles.feeItem}>
-                  <div style={styles.feeLabel}>Available Capacity</div>
-                  <div style={styles.feeValue}>{vaultDetail.availableCapacity || '892 BTC'}</div>
-                </div>
-              </div>
-
-              {/* Contract Addresses */}
-              {vaultDetail.contractAddresses && (
-                <div style={styles.contractAddressesSection}>
-                  <div style={styles.contractAddressesGrid}>
-                    {vaultDetail.contractAddresses.administrator && (
-                      <div style={styles.addressCard}>
-                        <div style={styles.addressLabel}>Administrator</div>
-                        <div style={styles.addressContainer}>
-                          <div 
-                            style={styles.addressValue}
-                            onClick={() => window.open(`https://etherscan.io/address/${vaultDetail.contractAddresses?.administrator}`, '_blank')}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.backgroundColor = '#f97316';
-                              e.currentTarget.style.color = '#ffffff';
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.backgroundColor = 'transparent';
-                              e.currentTarget.style.color = '#374151';
-                            }}
-                          >
-                            {truncateAddress(vaultDetail.contractAddresses.administrator)}
-                          </div>
-                          <button
-                            style={styles.copyButton}
-                            onClick={() => navigator.clipboard.writeText(vaultDetail.contractAddresses?.administrator || '')}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.backgroundColor = '#d1d5db';
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.backgroundColor = '#e5e7eb';
-                            }}
-                            title="Copy address"
-                          >
-                            📋
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                    {vaultDetail.contractAddresses.safe && (
-                      <div style={styles.addressCard}>
-                        <div style={styles.addressLabel}>Safe</div>
-                        <div style={styles.addressContainer}>
-                          <div 
-                            style={styles.addressValue}
-                            onClick={() => window.open(`https://etherscan.io/address/${vaultDetail.contractAddresses?.safe}`, '_blank')}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.backgroundColor = '#f97316';
-                              e.currentTarget.style.color = '#ffffff';
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.backgroundColor = 'transparent';
-                              e.currentTarget.style.color = '#374151';
-                            }}
-                          >
-                            {truncateAddress(vaultDetail.contractAddresses.safe)}
-                          </div>
-                          <button
-                            style={styles.copyButton}
-                            onClick={() => navigator.clipboard.writeText(vaultDetail.contractAddresses?.safe || '')}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.backgroundColor = '#d1d5db';
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.backgroundColor = '#e5e7eb';
-                            }}
-                            title="Copy address"
-                          >
-                            📋
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                    {vaultDetail.contractAddresses.priceOracle && (
-                      <div style={styles.addressCard}>
-                        <div style={styles.addressLabel}>Price Oracle</div>
-                        <div style={styles.addressContainer}>
-                          <div 
-                            style={styles.addressValue}
-                            onClick={() => window.open(`https://etherscan.io/address/${vaultDetail.contractAddresses?.priceOracle}`, '_blank')}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.backgroundColor = '#f97316';
-                              e.currentTarget.style.color = '#ffffff';
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.backgroundColor = 'transparent';
-                              e.currentTarget.style.color = '#374151';
-                            }}
-                          >
-                            {truncateAddress(vaultDetail.contractAddresses.priceOracle)}
-                          </div>
-                          <button
-                            style={styles.copyButton}
-                            onClick={() => navigator.clipboard.writeText(vaultDetail.contractAddresses?.priceOracle || '')}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.backgroundColor = '#d1d5db';
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.backgroundColor = '#e5e7eb';
-                            }}
-                            title="Copy address"
-                          >
-                            📋
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                    {vaultDetail.contractAddresses.whitelistManager && (
-                      <div style={styles.addressCard}>
-                        <div style={styles.addressLabel}>Whitelist manager</div>
-                        <div style={styles.addressContainer}>
-                          <div 
-                            style={styles.addressValue}
-                            onClick={() => window.open(`https://etherscan.io/address/${vaultDetail.contractAddresses?.whitelistManager}`, '_blank')}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.backgroundColor = '#f97316';
-                              e.currentTarget.style.color = '#ffffff';
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.backgroundColor = 'transparent';
-                              e.currentTarget.style.color = '#374151';
-                            }}
-                          >
-                            {truncateAddress(vaultDetail.contractAddresses.whitelistManager)}
-                          </div>
-                          <button
-                            style={styles.copyButton}
-                            onClick={() => navigator.clipboard.writeText(vaultDetail.contractAddresses?.whitelistManager || '')}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.backgroundColor = '#d1d5db';
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.backgroundColor = '#e5e7eb';
-                            }}
-                            title="Copy address"
-                          >
-                            📋
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              <div style={styles.divider} />
-
-              <div style={styles.insuranceBadge}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                </svg>
-                <span>{vaultDetail.insurance || 'Insured up to $500M through Ledger Enterprise'}</span>
-              </div>
-
-              <div style={styles.warningBadge}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
-                <span>{vaultDetail.additionalInfo?.lockupPeriod || '12-month lock-up period with 5% early withdrawal penalty'}</span>
-              </div>
-            </section>
+            {/* This column is now reserved for future content */}
           </div>
 
           {/* Right Column */}
           <div>
-            {/* Action Flow Section */}
-            <section id="get-started-section" style={styles.section}>
-              <div style={styles.sectionTitle}>
-                {userPosition.hasDeposited ? 'Your Position' : 'Get Started'}
-              </div>
-              <div style={styles.stepFlow}>
-                {/* Only show steps 1 & 2 if user doesn't have a position */}
-                {!userPosition.hasDeposited && (
-                  <>
-                    {/* Step 1: Connect Wallet */}
-                    <div 
-                      style={{
-                        ...styles.step(!isConnected, isConnected),
-                        ...((!isConnected) ? styles.clickableStep : {})
-                      }}
-                      onClick={!isConnected ? handleConnectWallet : undefined}
-                      onMouseEnter={(e) => {
-                        if (!isConnected) {
-                          e.currentTarget.style.transform = 'translateY(-2px)';
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        if (!isConnected) {
-                          e.currentTarget.style.transform = 'translateY(0px)';
-                        }
-                      }}
-                    >
-                      <div style={styles.stepNumber(isConnected)}>
-                        {isConnected ? '✓' : '1'}
-                      </div>
-                      <div style={styles.stepContent}>
-                        <div style={styles.stepTitle}>Connect Wallet</div>
-                        <div style={styles.stepDescription}>
-                          {isConnected ? 'Your wallet is connected and ready' : 'Connect your wallet to continue'}
-                        </div>
-                      </div>
-                    </div>
-                    
-                    {/* Step 2: Complete KYC */}
-                    <div 
-                      style={{
-                        ...styles.step(isConnected && kycStatus !== 'approved', kycStatus === 'approved'),
-                        ...(isConnected ? styles.clickableStep : {}),
-                        ...(kycStatus === 'rejected' ? {
-                          backgroundColor: '#fef2f2',
-                          border: '1px solid #f87171'
-                        } : {})
-                      }}
-                      onClick={isConnected ? handleCompleteKYC : undefined}
-                      onMouseEnter={(e) => {
-                        if (isConnected) {
-                          e.currentTarget.style.transform = 'translateY(-2px)';
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        if (isConnected) {
-                          e.currentTarget.style.transform = 'translateY(0px)';
-                        }
-                      }}
-                    >
-                      <div style={{
-                        ...styles.stepNumber(kycStatus === 'approved'),
-                        ...(kycStatus === 'rejected' ? {
-                          backgroundColor: '#ef4444',
-                          color: 'white'
-                        } : {})
-                      }}>
-                        {kycStatus === 'approved' ? '✓' : kycStatus === 'rejected' ? '✗' : '2'}
-                      </div>
-                      <div style={styles.stepContent}>
-                        <div style={styles.stepTitle}>Complete KYC</div>
-                        <div style={styles.stepDescription}>
-                          {kycStatus === 'approved' 
-                            ? 'Your identity has been verified'
-                            : kycStatus === 'in-progress'
-                            ? 'Identity verification in progress'
-                            : kycStatus === 'rejected'
-                            ? 'Identity verification failed - click to retry'
-                            : 'Complete identity verification'
-                          }
-                        </div>
-                      </div>
-                    </div>
-                  </>
-                )}
-                
-                {/* Step 3: Deposit Management */}
-                {isConnected && kycStatus === 'approved' ? (
-                  <div style={userPosition.hasDeposited ? styles.positionOnlyCard : styles.step(true, false)}>
-                    {!userPosition.hasDeposited && (
-                      <div style={styles.stepNumber(false)}>3</div>
-                    )}
-                    <div style={{ ...styles.stepContent, width: '100%' }}>
-                      {!userPosition.hasDeposited ? (
-                        // First-time deposit flow
-                        <>
-                          <div style={styles.stepTitle}>Make Deposit</div>
-                          <div style={styles.stepDescription}>Enter the amount you'd like to deposit</div>
-                          
-                          <form onSubmit={handleDeposit} style={styles.depositForm}>
-                            <div style={styles.formGroup}>
-                              <label style={styles.formLabel}>
-                                Deposit Amount (cbBTC)
-                              </label>
-                              <input
-                                type="number"
-                                step="0.001"
-                                min="0.001"
-                                placeholder="0.001"
-                                value={depositAmount}
-                                onChange={(e) => setDepositAmount(e.target.value)}
-                                style={{
-                                  ...styles.formInput,
-                                  opacity: isLoading ? 0.6 : 1
-                                }}
-                                disabled={isLoading}
-                                required
-                              />
-                              <div style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '0.5rem' }}>
-                                Minimum: {vaultDetail?.minimumDeposit || '0.001 cbBTC'}
-                              </div>
-                            </div>
-                            
-                            <button 
-                              type="submit"
-                              disabled={isLoading}
-                              style={{
-                                ...styles.depositButton,
-                                backgroundColor: isLoading ? '#9ca3af' : '#10b981',
-                                cursor: isLoading ? 'not-allowed' : 'pointer'
-                              }}
-                              onMouseEnter={(e) => {
-                                if (!isLoading) e.currentTarget.style.backgroundColor = '#059669'
-                              }}
-                              onMouseLeave={(e) => {
-                                if (!isLoading) e.currentTarget.style.backgroundColor = '#10b981'
-                              }}
-                            >
-                              {isLoading ? 'Processing...' : 'Deposit cbBTC'}
-                            </button>
-                          </form>
-                        </>
-                      ) : (
-                        // Position management for existing depositors
-                        <>
-                       
-                          <div style={{
-                            padding: '1.5rem',
-                            backgroundColor: '#f8f9fa',
-                            borderRadius: '1rem',
-                            border: '1px solid #e5e7eb'
-                          }}>
-                            <div style={{
-                              fontSize: '0.875rem',
-                              color: '#6b7280',
-                              marginBottom: '0.5rem',
-                              fontWeight: '500'
-                            }}>My position</div>
-                            <div style={{
-                              fontSize: '2rem',
-                              fontWeight: 'bold',
-                              color: '#111827',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '0.5rem',
-                              marginBottom: '1.5rem'
-                            }}>
-                              <img 
-                                src="https://app.lagoon.finance/logo_cbBTC.png" 
-                                alt="cbBTC" 
-                                style={{ width: '32px', height: '32px', borderRadius: '50%' }}
-                              />
-                              {userPosition.cbBTCBalance} cbBTC
-                            </div>
-                            
-                            <div style={{
-                              fontSize: '0.875rem',
-                              color: '#6b7280',
-                              marginBottom: '0.5rem',
-                              fontWeight: '500'
-                            }}>My wallet balance</div>
-                            <div style={{
-                              fontSize: '1.5rem',
-                              fontWeight: 'bold',
-                              color: '#111827',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '0.5rem',
-                              marginBottom: '1.5rem'
-                            }}>
-                              <img 
-                                src="https://app.lagoon.finance/logo_cbBTC.png" 
-                                alt="cbBTC" 
-                                style={{ width: '24px', height: '24px', borderRadius: '50%' }}
-                              />
-                              0 cbBTC {/* TODO: Load actual wallet balance */}
-                              <span style={{ fontSize: '0.875rem', color: '#6b7280' }}>($0)</span>
-                            </div>
 
-                            <div style={{
-                              display: 'flex',
-                              gap: '1rem'
-                            }}>
-                              <button
-                                onClick={() => setShowDepositModal(true)}
-                                style={{
-                                  flex: 1,
-                                  padding: '0.75rem 1.5rem',
-                                  backgroundColor: '#10b981',
-                                  color: 'white',
-                                  border: 'none',
-                                  borderRadius: '0.5rem',
-                                  fontWeight: '500',
-                                  cursor: 'pointer',
-                                  transition: 'all 0.2s ease'
-                                }}
-                                disabled={isLoading}
-                                onMouseEnter={(e) => {
-                                  if (!isLoading) e.currentTarget.style.backgroundColor = '#059669';
-                                }}
-                                onMouseLeave={(e) => {
-                                  if (!isLoading) e.currentTarget.style.backgroundColor = '#10b981';
-                                }}
-                              >
-                                Deposit
-                              </button>
-                              <button
-                                onClick={() => setShowWithdrawModal(true)}
-                                style={{
-                                  flex: 1,
-                                  padding: '0.75rem 1.5rem',
-                                  backgroundColor: parseFloat(userPosition.cbBTCBalance) > 0 ? '#374151' : '#9ca3af',
-                                  color: 'white',
-                                  border: 'none',
-                                  borderRadius: '0.5rem',
-                                  fontWeight: '500',
-                                  cursor: parseFloat(userPosition.cbBTCBalance) > 0 ? 'pointer' : 'not-allowed',
-                                  transition: 'all 0.2s ease'
-                                }}
-                                disabled={isLoading || parseFloat(userPosition.cbBTCBalance) === 0}
-                                onMouseEnter={(e) => {
-                                  if (!isLoading && parseFloat(userPosition.cbBTCBalance) > 0) {
-                                    e.currentTarget.style.backgroundColor = '#1f2937';
-                                  }
-                                }}
-                                onMouseLeave={(e) => {
-                                  if (!isLoading && parseFloat(userPosition.cbBTCBalance) > 0) {
-                                    e.currentTarget.style.backgroundColor = '#374151';
-                                  }
-                                }}
-                              >
-                                Withdraw
-                              </button>
-                            </div>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                ) : (
-                  <div style={styles.step(false, false)}>
-                    <div style={styles.stepNumber(false)}>3</div>
-                    <div style={styles.stepContent}>
-                      <div style={styles.stepTitle}>Make Deposit</div>
-                      <div style={styles.stepDescription}>
-                        Minimum {vaultDetail?.minimumDeposit || '0.001 cbBTC'} required
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </section>
 
             {/* Ongoing Transactions Section */}
             {isConnected && walletAddress && vaultDetail && (() => {
@@ -2182,12 +2549,79 @@ export default function VaultDetailPage() {
             })()}
           </div>
         </div>
+
+        {/* Call to Action Section */}
+        <section style={styles.ctaSection}>
+          <div style={styles.ctaContent}>
+            <h2 style={styles.ctaTitle}>Interested in This Vault?</h2>
+            <p style={styles.ctaSubtitle}>
+              Join institutional investors and high-net-worth individuals who trust our proven strategies for Bitcoin yield generation. 
+              Our team of experienced portfolio managers delivers consistent performance while maintaining strict risk controls.
+            </p>
+            
+            <div style={styles.ctaFeatures}>
+              <div style={styles.ctaFeature}>
+                <div style={styles.ctaFeatureIcon}>🏦</div>
+                <div style={styles.ctaFeatureContent}>
+                  <h4 style={styles.ctaFeatureTitle}>Professional Portfolio Management</h4>
+                  <p style={styles.ctaFeatureText}>Experienced team with proven track record in digital asset management and institutional trading strategies.</p>
+                </div>
+              </div>
+              
+              <div style={styles.ctaFeature}>
+                <div style={styles.ctaFeatureIcon}>🔒</div>
+                <div style={styles.ctaFeatureContent}>
+                  <h4 style={styles.ctaFeatureTitle}>Institutional-Grade Security</h4>
+                  <p style={styles.ctaFeatureText}>Multi-signature custody solutions with insurance coverage up to $500M through leading enterprise providers.</p>
+                </div>
+              </div>
+              
+              <div style={styles.ctaFeature}>
+                <div style={styles.ctaFeatureIcon}>📈</div>
+                <div style={styles.ctaFeatureContent}>
+                  <h4 style={styles.ctaFeatureTitle}>Transparent Reporting</h4>
+                  <p style={styles.ctaFeatureText}>Regular performance updates, detailed monthly statements, and full transparency on all investment activities.</p>
+                </div>
+              </div>
+              
+              <div style={styles.ctaFeature}>
+                <div style={styles.ctaFeatureIcon}>⚡</div>
+                <div style={styles.ctaFeatureContent}>
+                  <h4 style={styles.ctaFeatureTitle}>Proven Strategy</h4>
+                  <p style={styles.ctaFeatureText}>Consistent returns through market cycles with advanced risk management and systematic rebalancing protocols.</p>
+                </div>
+              </div>
+            </div>
+            
+            <div style={styles.ctaAction}>
+              <button 
+                style={styles.ctaButton}
+                onClick={() => setIsContactModalOpen(true)}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#ea580c';
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 10px 25px rgba(249, 115, 22, 0.3)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = '#f97316';
+                  e.currentTarget.style.transform = 'translateY(0px)';
+                  e.currentTarget.style.boxShadow = '0 4px 15px rgba(249, 115, 22, 0.2)';
+                }}
+              >
+                Contact Our Investment Team
+              </button>
+              <p style={styles.ctaDisclaimer}>
+                Schedule a consultation to discuss your investment goals and learn how this vault fits into your portfolio strategy.
+              </p>
+            </div>
+          </div>
+        </section>
       </main>
 
       
-      <ConnectWalletModal
-        isOpen={isConnectWalletModalOpen}
-        onClose={() => setIsConnectWalletModalOpen(false)}
+      <ContactForm
+        isOpen={isContactModalOpen}
+        onClose={() => setIsContactModalOpen(false)}
       />
 
       {/* Deposit Modal */}

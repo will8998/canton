@@ -3,14 +3,11 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { useState } from 'react';
-import { useWallet } from '@/context/WalletContext';
-import ConnectWalletModal from './ConnectWalletModal';
-import KYCStatus from './KYCStatus';
+import ContactForm from './ContactForm';
 import AnnouncementTicker from './AnnouncementTicker';
 
 export default function Navbar() {
-  const { isConnected } = useWallet();
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isContactModalOpen, setIsContactModalOpen] = useState(false);
 
   return (
     <>
@@ -29,24 +26,20 @@ export default function Navbar() {
           </div>
           
           <div className="nav-right">
-            {isConnected ? (
-              <KYCStatus />
-            ) : (
-              <button 
-                className="connect-button"
-                onClick={() => setIsModalOpen(true)}
-              >
-                Connect Wallet
-              </button>
-            )}
+            <button 
+              className="connect-button"
+              onClick={() => setIsContactModalOpen(true)}
+            >
+              Contact Us
+            </button>
           </div>
         </div>
       </nav>
       <AnnouncementTicker />
 
-      <ConnectWalletModal 
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+      <ContactForm 
+        isOpen={isContactModalOpen}
+        onClose={() => setIsContactModalOpen(false)}
       />
     </>
   );

@@ -12,14 +12,7 @@ export default function VaultCard(vault: VaultCardProps) {
     router.push(`/vault/${vault.address}`);
   };
 
-  const getRiskColor = (riskLevel: string) => {
-    switch (riskLevel.toLowerCase()) {
-      case 'low': return '#10b981'; // Green
-      case 'medium': return '#f59e0b'; // Yellow
-      case 'high': return '#ef4444'; // Red
-      default: return '#6b7280'; // Gray
-    }
-  };
+
 
   return (
     <div 
@@ -81,7 +74,7 @@ export default function VaultCard(vault: VaultCardProps) {
         </div>
       </div>
 
-      {/* Risk Level */}
+      {/* Max Drawdown */}
       <div style={{ 
         display: 'flex', 
         justifyContent: 'space-between', 
@@ -89,29 +82,19 @@ export default function VaultCard(vault: VaultCardProps) {
         marginBottom: '1.5rem'
       }}>
         <div>
-          <span style={{ fontSize: '1rem', color: '#111827' }}>Risk Level:</span>
+          <span style={{ fontSize: '1rem', color: '#111827' }}>Max Drawdown:</span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <div style={{
-            width: '60px',
-            height: '8px',
-            backgroundColor: '#e5e7eb',
-            borderRadius: '4px',
-            overflow: 'hidden'
-          }}>
-            <div style={{
-              width: vault.riskLevel === 'Low' ? '33%' : vault.riskLevel === 'Medium' ? '66%' : '100%',
-              height: '100%',
-              backgroundColor: getRiskColor(vault.riskLevel),
-              borderRadius: '4px'
-            }} />
-          </div>
+        <div>
           <span style={{ 
             fontSize: '1rem', 
-            color: '#111827',
-            fontWeight: '500'
+            color: '#ef4444',
+            fontWeight: '600',
+            backgroundColor: '#fef2f2',
+            padding: '0.25rem 0.5rem',
+            borderRadius: '0.375rem',
+            border: '1px solid #fecaca'
           }}>
-            {vault.riskLevel}
+            {vault.maxDrawdown || 'N/A'}
           </span>
         </div>
       </div>

@@ -45,6 +45,7 @@ export interface LagoonVault {
   
   // Risk and fee information (set by us, not from Lagoon docs)
   riskLevel: 'Low' | 'Medium' | 'High';
+  maxDrawdown?: string;
   lockPeriod?: string;
   breakFee?: string;
   minimumDeposit: string;
@@ -186,6 +187,7 @@ export const sampleLagoonVaults: LagoonVault[] = [
     
     // Risk and fee information (set by us)
     riskLevel: "Low",
+    maxDrawdown: "2.8%",
     lockPeriod: "7 days",
     breakFee: "0.5%",
     minimumDeposit: "0.01 ETH",
