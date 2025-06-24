@@ -4,15 +4,10 @@ import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Navbar from '@/components/Navbar';
 import VaultCard from '@/components/VaultCard';
-import VaultFilters from '@/components/VaultFilters';
 import { sampleLagoonVaults, LagoonVault } from '@/data/lagoonVaults';
 
 export default function Home() {
-  const [filteredVaults, setFilteredVaults] = useState<LagoonVault[]>(sampleLagoonVaults);
-  const [totalAssets, setTotalAssets] = useState('343'); // Total ETH from Lagoon vaults
   const [isMobile, setIsMobile] = useState(true);
-  const [currentFilter, setCurrentFilter] = useState('All Providers');
-  const [currentSort, setCurrentSort] = useState('Target APY');
 
   useEffect(() => {
     // Check if window is defined (client-side)
@@ -36,7 +31,7 @@ export default function Home() {
     main: {
       maxWidth: '1280px',
       margin: '0 auto',
-      padding: '2rem 1rem'
+      padding: '0.5rem'
     },
     heading: {
       fontSize: '1.875rem',
@@ -51,7 +46,7 @@ export default function Home() {
       display: 'grid',
       gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)',
       gap: '1.5rem',
-      marginBottom: '2rem'
+      marginBottom: '1rem'
     },
     footer: {
       marginTop: '2rem',
@@ -80,38 +75,6 @@ export default function Home() {
     }
   };
 
-  const handleFilterChange = (filterBy: string) => {
-    setCurrentFilter(filterBy);
-    applyFilters(filterBy, currentSort);
-  };
-
-  const handleSortChange = (sortBy: string) => {
-    setCurrentSort(sortBy);
-    applyFilters(currentFilter, sortBy);
-  };
-
-  const applyFilters = (filterBy: string, sortBy: string) => {
-    let filtered = [...sampleLagoonVaults];
-
-    // Apply provider filter
-    if (filterBy !== 'All Providers') {
-      filtered = filtered.filter(vault => vault.assetManager?.name === filterBy);
-    }
-
-    // Apply sorting
-    if (sortBy === 'Target APY') {
-      filtered.sort((a, b) => 
-        (b.apr || 0) - (a.apr || 0)
-      );
-    } else if (sortBy === 'TVL') {
-      filtered.sort((a, b) => 
-        (b.tvl || 0) - (a.tvl || 0)
-      );
-    }
-
-    setFilteredVaults(filtered);
-  };
-
   return (
     <div className="page-container">
       <Navbar />
@@ -132,17 +95,9 @@ export default function Home() {
           />
         </div>
         
-        {/* Filters */}
-        <div className="filter-section">
-          <VaultFilters 
-            onFilterChange={handleFilterChange} 
-            onSortChange={handleSortChange}
-          />
-        </div>
-        
         {/* Vaults Grid */}
         <div className="vault-grid">
-          {filteredVaults.map(vault => (
+          {sampleLagoonVaults.map(vault => (
             <VaultCard
               key={vault.address}
               {...vault}
@@ -153,7 +108,7 @@ export default function Home() {
           <div style={{
             backgroundColor: '#f3f4f6',
             borderRadius: '1rem',
-            padding: '2rem',
+            padding: '1.5rem',
             border: '2px dashed #d1d5db',
             textAlign: 'center' as const,
             opacity: 0.7,
@@ -163,7 +118,7 @@ export default function Home() {
               fontSize: '1.5rem',
               fontWeight: 'bold',
               marginBottom: '1rem',
-              marginTop: '2rem',
+              marginTop: '0.5rem',
               color: '#6b7280'
             }}>
               More Vaults Coming Soon
@@ -171,7 +126,7 @@ export default function Home() {
             
             <p style={{
               color: '#6b7280',
-              marginBottom: '1.5rem',
+              marginBottom: '1rem',
               lineHeight: '1.6'
             }}>
               BitSafe will support diverse strategies: low-risk lending, moderate basis trading, high-yield HFT, and structured principal-protected vaults—all with regulated partners.
@@ -179,7 +134,7 @@ export default function Home() {
             
             <p style={{
               color: '#6b7280',
-              marginBottom: '1.5rem',
+              marginBottom: '1rem',
               lineHeight: '1.6',
               fontWeight: '600'
             }}>

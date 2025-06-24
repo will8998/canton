@@ -22,7 +22,6 @@ export default function VaultCard(vault: VaultCardProps) {
         borderRadius: '0.75rem', 
         padding: '1.5rem',
         backgroundColor: 'white',
-        marginBottom: '1rem',
         cursor: 'pointer',
         transition: 'all 0.2s ease'
       }}
@@ -98,30 +97,6 @@ export default function VaultCard(vault: VaultCardProps) {
           </span>
         </div>
       </div>
-
-      {/* Lock Period and Minimum */}
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'space-between',
-        marginBottom: '2rem'
-      }}>
-        <div>
-          <span style={{ fontSize: '1rem', color: '#6b7280' }}>
-            Lock: {vault.lockPeriod}
-            {vault.breakFee && (
-              <span style={{ fontSize: '0.875rem' }}>
-                {' '}({vault.breakFee} break-fee)
-              </span>
-            )}
-          </span>
-        </div>
-        <div style={{ textAlign: 'right' }}>
-          <span style={{ fontSize: '1rem', color: '#6b7280' }}>
-            Min: {vault.minimumDeposit}
-          </span>
-        </div>
-      </div>
-
 
     </div>
   );
