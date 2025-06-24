@@ -148,14 +148,71 @@ export default function Home() {
               {...vault}
             />
           ))}
-        </div>
-        
-        {/* Footer Stats */}
-        <div className="footer-stats">
-          <p>
-            Active Vaults: {filteredVaults.filter(v => v.visible && !v.paused).length} | 
-            Total TVL: ${(filteredVaults.reduce((sum, vault) => sum + (vault.tvl || 0), 0) / 1000000).toFixed(1)}M
-          </p>
+          
+          {/* Coming Soon Card */}
+          <div style={{
+            backgroundColor: '#f3f4f6',
+            borderRadius: '1rem',
+            padding: '2rem',
+            border: '2px dashed #d1d5db',
+            textAlign: 'center' as const,
+            opacity: 0.7,
+            transition: 'all 0.3s ease'
+          }}>
+            <h3 style={{
+              fontSize: '1.5rem',
+              fontWeight: 'bold',
+              marginBottom: '1rem',
+              marginTop: '2rem',
+              color: '#6b7280'
+            }}>
+              More Vaults Coming Soon
+            </h3>
+            
+            <p style={{
+              color: '#6b7280',
+              marginBottom: '1.5rem',
+              lineHeight: '1.6'
+            }}>
+              BitSafe will support diverse strategies: low-risk lending, moderate basis trading, high-yield HFT, and structured principal-protected vaults—all with regulated partners.
+            </p>
+            
+            <p style={{
+              color: '#6b7280',
+              marginBottom: '1.5rem',
+              lineHeight: '1.6',
+              fontWeight: '600'
+            }}>
+              <strong>Trading firms can create custom vaults by contacting us.</strong>
+            </p>
+            
+            <button 
+              style={{
+                backgroundColor: '#f97316',
+                color: 'white',
+                border: 'none',
+                borderRadius: '0.5rem',
+                padding: '0.75rem 1.5rem',
+                fontSize: '1rem',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#ea580c';
+                e.currentTarget.style.transform = 'translateY(-1px)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = '#f97316';
+                e.currentTarget.style.transform = 'translateY(0)';
+              }}
+              onClick={() => {
+                window.open('https://tally.so/r/n9PJ85', '_blank');
+              }}
+            >
+              Contact Us
+            </button>
+          </div>
         </div>
       </div>
     </div>

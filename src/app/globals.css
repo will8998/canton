@@ -286,6 +286,33 @@ label {
   z-index: 1;
 }
 
+/* Mobile Hero Adjustments */
+@media (max-width: 767px) {
+  .hero-section {
+    background: linear-gradient(to bottom, rgba(255, 255, 255, 0.95) 60%, transparent);
+    height: 320px;
+  }
+  
+  .hero-content {
+    padding: var(--spacing-6);
+    max-width: 100%;
+  }
+  
+  .hero-content h1 {
+    font-size: 28px;
+    margin-bottom: var(--spacing-3);
+  }
+  
+  .hero-content p {
+    font-size: var(--text-base);
+  }
+  
+  .hero-image {
+    object-position: center bottom;
+    opacity: 0.3;
+  }
+}
+
 /* Filter Section */
 .filter-section {
   margin-bottom: var(--spacing-8);

@@ -46,17 +46,15 @@ import {
 import Navbar from '@/components/Navbar';
 
 import ContactForm from '@/components/ContactForm';
-import OngoingTransactionCard from '@/components/vault/OngoingTransactionCard';
+
 import { lagoonVaultDetails, LagoonVaultDetail } from '@/data/vaultDetails';
-import { useWallet } from '@/context/WalletContext';
-import { useTransaction } from '@/context/DepositContext';
+
 
 export default function VaultDetailPage() {
   const params = useParams();
   const router = useRouter();
   const vaultId = params.vaultId as string;
-  const { isConnected, kycStatus, walletAddress } = useWallet();
-  const { createDeposit, createWithdrawal, getVaultTransactions, removeTransaction } = useTransaction();
+
   const [vaultDetail, setVaultDetail] = useState<LagoonVaultDetail | null>(null);
   const [timeRange, setTimeRange] = useState('6mo');
   const [showStrategyInfo, setShowStrategyInfo] = useState(false);
@@ -213,62 +211,7 @@ export default function VaultDetailPage() {
     };
   }, []);
 
-  // Load user position when wallet is connected and KYC approved
-  useEffect(() => {
-    if (isConnected && kycStatus === 'approved' && walletAddress) {
-      loadUserPosition();
-    }
-  }, [isConnected, kycStatus, walletAddress]);
-
-  // Monitor transaction approvals and update position
-  useEffect(() => {
-    if (isConnected && walletAddress && vaultDetail) {
-      const vaultTransactions = getVaultTransactions(vaultId, walletAddress);
-      const newlyApprovedDeposits = vaultTransactions.filter(transaction => 
-        transaction.type === 'deposit' && transaction.status === 'approved' && !processedDepositIds.has(transaction.id)
-      );
-      const newlyApprovedWithdrawals = vaultTransactions.filter(transaction => 
-        transaction.type === 'withdrawal' && transaction.status === 'approved' && !processedDepositIds.has(transaction.id)
-      );
-      
-      let positionChange = 0;
-      
-      if (newlyApprovedDeposits.length > 0) {
-        // Calculate total newly approved deposit amount
-        const totalNewlyApprovedAmount = newlyApprovedDeposits.reduce((sum, transaction) => 
-          sum + parseFloat(transaction.amount), 0
-        );
-        positionChange += totalNewlyApprovedAmount;
-        console.log(`Added ${totalNewlyApprovedAmount} cbBTC to position from ${newlyApprovedDeposits.length} approved deposits`);
-      }
-      
-      if (newlyApprovedWithdrawals.length > 0) {
-        // Calculate total newly approved withdrawal amount
-        const totalNewlyWithdrawnAmount = newlyApprovedWithdrawals.reduce((sum, transaction) => 
-          sum + parseFloat(transaction.amount), 0
-        );
-        positionChange -= totalNewlyWithdrawnAmount;
-        console.log(`Removed ${totalNewlyWithdrawnAmount} cbBTC from position from ${newlyApprovedWithdrawals.length} approved withdrawals`);
-      }
-      
-      if (positionChange !== 0) {
-        // Update user position to reflect newly approved transactions
-        setUserPosition(prev => ({
-          cbBTCBalance: Math.max(0, parseFloat(prev.cbBTCBalance) + positionChange).toFixed(3),
-          usdValue: `$${(Math.max(0, parseFloat(prev.cbBTCBalance) + positionChange) * 65000).toLocaleString()}`, // Mock BTC price
-          hasDeposited: Math.max(0, parseFloat(prev.cbBTCBalance) + positionChange) > 0
-        }));
-
-        // Mark these transactions as processed
-        setProcessedDepositIds(prev => {
-          const newSet = new Set(prev);
-          [...newlyApprovedDeposits, ...newlyApprovedWithdrawals].forEach(transaction => newSet.add(transaction.id));
-          return newSet;
-        });
-      }
-    }
-  }, [isConnected, walletAddress, vaultDetail, getVaultTransactions, vaultId, processedDepositIds]);
-
+ 
 
 
   /* 
@@ -309,155 +252,7 @@ export default function VaultDetailPage() {
     setIsContactModalOpen(true);
   };
 
-  const handleCompleteKYC = () => {
-    router.push('/kyc');
-  };
 
-  /* 
-   * BACKEND TODO: Implement cbBTC deposit to vault
-   * Smart contract flow:
-   * 1. Check user's cbBTC balance and allowance
-   * 2. If allowance insufficient, prompt for approval transaction
-   * 3. Call vault.deposit(amount) function
-   * 4. Update user position after successful deposit
-   */
-  const handleDeposit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!depositAmount || parseFloat(depositAmount) < 0.001) {
-      alert(`Please enter a valid deposit amount (minimum ${vaultDetail?.minimumDeposit || '0.001 cbBTC'})`);
-      return;
-    }
-
-    try {
-      setIsLoading(true);
-      
-      // Perform KYT check before deposit if enabled
-      const kytCheckOnDeposit = process.env.NEXT_PUBLIC_KYT_CHECK_ON_DEPOSIT === 'true';
-      const isTestMode = process.env.NEXT_PUBLIC_APP_MODE === 'test';
-      
-      if (kytCheckOnDeposit && !isTestMode) {
-        console.log('Performing KYT check before deposit...');
-        const kytResult = { passed: true, risk: 'low' };
-        
-        if (!kytResult.passed) {
-          alert('Transaction blocked: Address failed KYT screening. Please contact support.');
-          return;
-        }
-        
-        if (kytResult.risk === 'high') {
-          const confirmed = confirm('This transaction has been flagged as high risk. Do you want to proceed?');
-          if (!confirmed) return;
-        }
-      }
-
-      // TODO: Replace with actual smart contract calls
-      /*
-      const provider = new ethers.providers.Web3Provider(window.ethereum);
-      const signer = provider.getSigner();
-      
-      // cbBTC token contract
-      const cbBTCContract = new ethers.Contract(CBBTC_TOKEN_ADDRESS, ERC20_ABI, signer);
-      
-      // Check user's cbBTC balance
-      const userBalance = await cbBTCContract.balanceOf(walletAddress);
-      const depositAmountWei = ethers.utils.parseUnits(depositAmount, 8); // cbBTC has 8 decimals
-      
-      if (userBalance.lt(depositAmountWei)) {
-        alert('Insufficient cbBTC balance');
-        return;
-      }
-      
-      // Check allowance
-      const allowance = await cbBTCContract.allowance(walletAddress, vaultDetail.address);
-      
-      if (allowance.lt(depositAmountWei)) {
-        // Request approval
-        const approveTx = await cbBTCContract.approve(vaultDetail.address, depositAmountWei);
-        await approveTx.wait();
-      }
-      
-      // Deposit to vault
-      const vaultContract = new ethers.Contract(vaultDetail.address, VAULT_ABI, signer);
-      const depositTx = await vaultContract.deposit(depositAmountWei);
-      await depositTx.wait();
-      */
-
-      // Mock successful deposit for frontend
-      console.log(`Processing deposit: ${depositAmount} cbBTC`);
-      
-      // Create ongoing deposit record
-      const depositId = createDeposit(vaultId, depositAmount, walletAddress);
-      console.log('Created ongoing deposit:', depositId);
-      
-      setDepositAmount('');
-      setShowDepositModal(false);
-      alert(`Deposit of ${depositAmount} cbBTC submitted successfully! It will appear in your position once approved by the fund manager.`);
-      
-    } catch (error) {
-      console.error('Deposit error:', error);
-      alert('Failed to process deposit. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  /* 
-   * BACKEND TODO: Implement cbBTC withdrawal from vault
-   * Smart contract flow:
-   * 1. Check user's vault share balance
-   * 2. Calculate cbBTC amount based on shares and current price per share
-   * 3. Call vault.withdraw(shares) or vault.redeem(amount) function
-   * 4. Update user position after successful withdrawal
-   */
-  const handleWithdraw = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!withdrawAmount || parseFloat(withdrawAmount) <= 0) {
-      alert('Please enter a valid withdrawal amount');
-      return;
-    }
-    
-    if (parseFloat(withdrawAmount) > parseFloat(userPosition.cbBTCBalance)) {
-      alert('Insufficient balance for withdrawal');
-      return;
-    }
-
-    try {
-      setIsLoading(true);
-      
-      // TODO: Replace with actual smart contract calls
-      /*
-      const provider = new ethers.providers.Web3Provider(window.ethereum);
-      const signer = provider.getSigner();
-      const vaultContract = new ethers.Contract(vaultDetail.address, VAULT_ABI, signer);
-      
-      // Calculate shares to withdraw based on amount
-      const pricePerShare = await vaultContract.pricePerShare();
-      const withdrawAmountWei = ethers.utils.parseUnits(withdrawAmount, 8);
-      const sharesToWithdraw = withdrawAmountWei.mul(ethers.utils.parseUnits('1', 18)).div(pricePerShare);
-      
-      // Withdraw from vault
-      const withdrawTx = await vaultContract.redeem(sharesToWithdraw);
-      await withdrawTx.wait();
-      */
-
-      // Mock successful withdrawal for frontend
-      console.log(`Processing withdrawal: ${withdrawAmount} cbBTC`);
-      
-      // Create ongoing withdrawal record
-      const withdrawalId = createWithdrawal(vaultId, withdrawAmount, walletAddress);
-      console.log('Created ongoing withdrawal:', withdrawalId);
-      
-      setWithdrawAmount('');
-      setShowWithdrawModal(false);
-      alert(`Withdrawal of ${withdrawAmount} cbBTC submitted successfully! It will be processed once approved by the fund manager.`);
-      
-    } catch (error) {
-      console.error('Withdrawal error:', error);
-      alert('Failed to process withdrawal. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   if (!vaultDetail) {
     return (
@@ -663,10 +458,10 @@ export default function VaultDetailPage() {
       height: '16px'
     },
     strategyList: {
-      display: 'grid',
-      gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(200px, 1fr))',
-      gap: '1rem',
-      marginBottom: '1.5rem'
+      display: 'flex',
+      flexDirection: 'column' as const,
+      gap: '0.75rem',
+      marginBottom: '1rem'
     },
     strategyItemCard: {
       display: 'flex',
@@ -1417,7 +1212,7 @@ export default function VaultDetailPage() {
     ctaTitle: {
       fontSize: isMobile ? '1.75rem' : '2.5rem',
       fontWeight: 'bold',
-      marginBottom: '1rem',
+      marginBottom: '0.5rem',
       color: 'white'
     },
     ctaSubtitle: {
@@ -1474,7 +1269,7 @@ export default function VaultDetailPage() {
       cursor: 'pointer',
       transition: 'all 0.3s ease',
       boxShadow: '0 4px 15px rgba(249, 115, 22, 0.2)',
-      marginBottom: '1rem'
+      marginBottom: '0.5rem'
     },
     ctaDisclaimer: {
       fontSize: '0.875rem',
@@ -1482,7 +1277,8 @@ export default function VaultDetailPage() {
       margin: 0,
       maxWidth: '500px',
       marginLeft: 'auto',
-      marginRight: 'auto'
+      marginRight: 'auto',
+      marginTop: '0.5rem'
     },
     // New VanEck-style layout styles
     heroLeftContent: {
@@ -1560,7 +1356,7 @@ export default function VaultDetailPage() {
       fontSize: '1.125rem',
       fontWeight: '600',
       color: '#111827',
-      marginBottom: '1.5rem'
+      marginBottom: '0.5rem'
     },
     investmentInputSection: {
       marginBottom: '1.5rem'
@@ -1646,7 +1442,7 @@ export default function VaultDetailPage() {
     investButton: {
       width: '100%',
       padding: '1rem',
-      backgroundColor: '#0ea5e9',
+      backgroundColor: '#f97316',
       color: 'white',
       border: 'none',
       borderRadius: '0.5rem',
@@ -1765,7 +1561,8 @@ export default function VaultDetailPage() {
     strategiesList: {
       display: 'flex',
       flexDirection: 'column' as const,
-      gap: '1rem'
+      gap: '0.75rem',
+      marginBottom: '1rem'
     },
     strategyListItem: {
       display: 'flex',
@@ -1873,7 +1670,7 @@ export default function VaultDetailPage() {
     },
     performanceMetrics: {
       display: 'grid',
-      gridTemplateColumns: 'repeat(2, 1fr)',
+      gridTemplateColumns: isMobile ? '1fr' : 'repeat(4, 1fr)',
       gap: '1rem'
     },
     performanceTabMetricCard: {
@@ -1963,6 +1760,23 @@ export default function VaultDetailPage() {
       fontWeight: 'bold',
       color: '#111827',
       lineHeight: '1.4'
+    },
+    strategyButton: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: '0.5rem',
+      padding: '0.75rem 1rem',
+      backgroundColor: '#f8f9fa',
+      borderRadius: '0.5rem',
+      border: '1px solid #e5e7eb',
+      cursor: 'pointer',
+      transition: 'all 0.2s ease'
+    },
+    strategyDot: {
+      width: '10px',
+      height: '10px',
+      backgroundColor: '#f97316',
+      borderRadius: '50%'
     }
   };
 
@@ -2013,13 +1827,6 @@ export default function VaultDetailPage() {
               <div style={styles.heroLeftContent}>
                 {/* Fund Header */}
                 <div style={styles.fundHeader}>
-                  <div style={styles.fundLogo}>
-                    <img 
-                      src="https://app.lagoon.finance/logo_cbBTC.png" 
-                      alt="cbBTC" 
-                      style={styles.fundLogoIcon}
-                    />
-                  </div>
                   <div style={styles.fundTitle}>
                     <h1 style={styles.fundName}>{vaultDetail.name}</h1>
                     <div style={styles.fundSymbol}>("{vaultDetail.name?.substring(0, 5).toUpperCase() || 'VAULT'}")</div>
@@ -2031,66 +1838,54 @@ export default function VaultDetailPage() {
                   {vaultDetail.description}
                 </div>
 
+          
+                
+            
+              
+
+              </div>
+            </div>
+
+            {/* Right Column - Investment CTA */}
+            <div style={styles.heroRight}>
+              <div style={styles.investmentForm}>
                 {/* Fund Stats */}
                 <div style={styles.fundStats}>
                   <div style={styles.fundStat}>
                     <div style={styles.fundStatLabel}>Minimum investment</div>
-                    <div style={styles.fundStatValue}>0.001 BTC</div>
+                    <div style={styles.fundStatValue}>1 BTC</div>
                   </div>
                   <div style={styles.fundStat}>
-                    <div style={styles.fundStatLabel}>AUM</div>
+                    <div style={styles.fundStatLabel}>Fund AUM</div>
                     <div style={styles.fundStatValue}>5.28 BTC</div>
                   </div>
                 </div>
-              </div>
-            </div>
-
-            {/* Right Column - Investment Form */}
-            <div style={styles.heroRight}>
-              <div style={styles.investmentForm}>
+                    {/* Separator */}
+                <div style={{ borderTop: '1px solid #e5e7eb', margin: '1.5rem 0' }}></div>
+                
+                
                 <div style={styles.investmentFormHeader}>
-                  Enter your investment
+                  Interested in This Vault?
                 </div>
                 
-                <div style={styles.investmentInputSection}>
-                  <div style={styles.investmentInputWrapper}>
-                    <input
-                      type="number"
-                      placeholder="0"
-                      value={depositAmount}
-                      onChange={(e) => setDepositAmount(e.target.value)}
-                      style={styles.investmentInput}
-                      step="0.001"
-                      min="0.001"
-                    />
-                    <div style={styles.currencySelector}>
-                      <span style={styles.currencyIcon}>₿</span>
-                      <span style={styles.currencyCode}>BTC</span>
-                      <svg style={styles.currencyDropdown} width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M6 9l6 6 6-6"/>
-                      </svg>
-                    </div>
-                  </div>
-                </div>
-
-                <div style={styles.investmentDisclaimer}>
-                  This is an estimate of the units you will receive subject to funds arriving during the current investment phase and the exchange rate applied to the funds.
-                </div>
-
                 <button 
                   style={styles.investButton}
                   onClick={() => setIsContactModalOpen(true)}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = '#0891b2';
+                    e.currentTarget.style.backgroundColor = '#ea580c';
                     e.currentTarget.style.transform = 'translateY(-1px)';
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = '#0ea5e9';
+                    e.currentTarget.style.backgroundColor = '#f97316';
                     e.currentTarget.style.transform = 'translateY(0px)';
                   }}
                 >
-                  Invest
+                  Contact Our Investment Team
                 </button>
+
+                <div style={styles.investmentDisclaimer}>
+                  Schedule a consultation to discuss your investment goals and see how this vault fits into your portfolio strategy.
+                </div>
               </div>
             </div>
           </div>
@@ -2135,21 +1930,8 @@ export default function VaultDetailPage() {
               <div style={styles.fundDetailsTab}>
                 {/* Two Column Layout */}
                 <div style={styles.fundDetailsTopRow}>
-                  {/* Left Column: Fund Name & Objective */}
+                  {/* Left Column: Target Return & Risk Metrics */}
                   <div style={styles.fundDetailsLeft}>
-                    <div style={styles.fundDetailSection}>
-                      <h3 style={styles.fundDetailTitle}>Fund Name</h3>
-                      <p style={styles.fundDetailText}>Atitlan Bitcoin Multi-Strat Fund</p>
-                      
-                      <h3 style={styles.fundDetailTitle}>Objective</h3>
-                      <p style={styles.fundDetailText}>
-                        To generate consistent bitcoin-denominated returns for BTC holders who want to preserve their long-term HODL strategy while earning low-risk yield on their bitcoin holdings.
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Right Column: Target Return & Risk Metrics */}
-                  <div style={styles.fundDetailsRight}>
                     <div style={styles.fundDetailSection}>
                       <h3 style={styles.fundDetailTitle}>Target Return & Risk Metrics</h3>
                       <div style={styles.metricsGrid}>
@@ -2236,80 +2018,31 @@ export default function VaultDetailPage() {
                       </div>
                     </div>
                   </div>
-                </div>
 
-                {/* Investment Strategies */}
-                <div style={styles.fundDetailSection}>
-                  <h3 style={styles.fundDetailTitle}>Investment Strategies</h3>
-                  <p style={styles.fundDetailText}>A diversified mix of:</p>
-                  
-                  <div style={styles.strategiesLayout}>
-                    <div style={styles.strategiesList}>
-                      <div style={styles.strategyListItem}>
-                        <div style={styles.strategyBullet}>•</div>
-                        <div style={styles.strategyContent}>
-                          <strong>Short-Term Directional:</strong> long/short, momentum, mean-reversion
+                  {/* Right Column: Investment Strategies */}
+                  <div style={styles.fundDetailsRight}>
+                    <div style={styles.fundDetailSection}>
+                      <h3 style={styles.fundDetailTitle}>Investment Strategies</h3>
+                      <p style={styles.fundDetailText}>A diversified mix of:</p>
+                      
+                      <div style={styles.strategiesList}>
+                        <div style={styles.strategyButton}>
+                          <span style={styles.strategyDot}></span>
+                          Short-Term Directional
+                        </div>
+                        <div style={styles.strategyButton}>
+                          <span style={{...styles.strategyDot, backgroundColor: '#0ea5e9'}}></span>
+                          Market-Neutral
+                        </div>
+                        <div style={styles.strategyButton}>
+                          <span style={{...styles.strategyDot, backgroundColor: '#10b981'}}></span>
+                          Options Trading
                         </div>
                       </div>
-                      <div style={styles.strategyListItem}>
-                        <div style={styles.strategyBullet}>•</div>
-                        <div style={styles.strategyContent}>
-                          <strong>Market-Neutral:</strong> arbitrage, basis trading, HFT
-                        </div>
-                      </div>
-                      <div style={styles.strategyListItem}>
-                        <div style={styles.strategyBullet}>•</div>
-                        <div style={styles.strategyContent}>
-                          <strong>Other Tactics:</strong> options trading
-                        </div>
-                      </div>
-                    </div>
-                    
-                    {/* Strategy Allocation Pie Chart */}
-                    <div style={styles.chartContainer}>
-                      <div style={styles.chartTitle}>Strategy Allocation</div>
-                      <ResponsiveContainer width="100%" height={200}>
-                        <PieChart>
-                          <Pie
-                            data={[
-                              { name: 'Short-Term Directional', value: 45, fill: '#f97316' },
-                              { name: 'Market-Neutral', value: 40, fill: '#0ea5e9' },
-                              { name: 'Options Trading', value: 15, fill: '#10b981' }
-                            ]}
-                            cx="50%"
-                            cy="50%"
-                            innerRadius={40}
-                            outerRadius={80}
-                            dataKey="value"
-                          >
-                          </Pie>
-                          <Tooltip formatter={(value) => [`${value}%`, '']} />
-                          <Legend />
-                        </PieChart>
-                      </ResponsiveContainer>
-                    </div>
-                  </div>
-                  
-                  <p style={styles.fundDetailText}>
-                    All strategies are executed via segregated managed accounts with institutional-grade security.
-                  </p>
-                </div>
-
-                {/* Risk Management */}
-                <div style={styles.fundDetailSection}>
-                  <h3 style={styles.fundDetailTitle}>Risk Management</h3>
-                  <div style={styles.riskGrid}>
-                    <div style={styles.riskItem}>
-                      <strong>Counterparty Risk:</strong> Minimized via mirror-trading through regulated custodians
-                    </div>
-                    <div style={styles.riskItem}>
-                      <strong>Pod Risk:</strong> SMAs with API-limited access, full control retained by fund
-                    </div>
-                    <div style={styles.riskItem}>
-                      <strong>Strategy Risk:</strong> Live-only track record due diligence, continuous monitoring, and dynamic allocation updates
-                    </div>
-                    <div style={styles.riskItem}>
-                      <strong>BTC Price Risk:</strong> Not a fund risk due to BTC-denomination of the product
+                      
+                      <p style={styles.fundDetailText}>
+                        All strategies are executed via segregated managed accounts with institutional-grade security.
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -2326,13 +2059,6 @@ export default function VaultDetailPage() {
                       <div style={styles.feesHeaderCell}>Lock-up</div>
                     </div>
                     <div style={styles.feesRow}>
-                      <div style={styles.feesCell}>Early Bird</div>
-                      <div style={styles.feesCell}>1.5%</div>
-                      <div style={styles.feesCell}>15%</div>
-                      <div style={styles.feesCell}>10 BTC</div>
-                      <div style={styles.feesCell}>6 months (3% break fee)</div>
-                    </div>
-                    <div style={styles.feesRow}>
                       <div style={styles.feesCell}>Standard</div>
                       <div style={styles.feesCell}>2%</div>
                       <div style={styles.feesCell}>20%</div>
@@ -2341,91 +2067,42 @@ export default function VaultDetailPage() {
                     </div>
                   </div>
                   
-                  <div style={styles.additionalTerms}>
-                    <div style={styles.termItem}><strong>Performance Fee:</strong> Only based on BTC gains (not USD)</div>
-                    <div style={styles.termItem}><strong>Liquidity:</strong> Monthly, with 30-day notice</div>
-                    <div style={styles.termItem}><strong>High Water Mark:</strong> Yes</div>
-                    <div style={styles.termItem}><strong>Fund Impact:</strong> Up to 3% of proceeds allocated to Bitcoin education and Bitcoin Core development initiatives</div>
-                  </div>
+                
                 </div>
               </div>
             )}
 
             {activeFundTab === 'performance' && (
               <div style={styles.performanceTab}>
-                {/* Fund Track Record */}
-                <div style={styles.fundDetailSection}>
-                  <h3 style={styles.fundDetailTitle}>Fund Track Record</h3>
-                  <div style={styles.trackRecordNotice}>
-                    <div style={styles.noticeIcon}>ℹ️</div>
-                    <p style={styles.fundDetailText}>
-                      This is a newly launched Bitcoin-denominated fund and does not yet have an independent performance history.
-                    </p>
-                  </div>
-                </div>
-
+             
                 {/* Reference Fund Performance */}
                 <div style={styles.fundDetailSection}>
-                  <h3 style={styles.fundDetailTitle}>Reference Fund (Atitlan Diversified Alpha Fund)</h3>
+                  <h3 style={styles.fundDetailTitle}>Fund Track Record</h3>
                   <p style={styles.fundDetailText}>
                     Operational since 2018 with the following key performance metrics:
                   </p>
                   
-                  <div style={styles.performanceLayout}>
-                    <div style={styles.performanceMetrics}>
-                      <div style={styles.performanceTabMetricCard}>
-                        <div style={styles.performanceMetricValue}>20%</div>
-                        <div style={styles.performanceMetricLabel}>Average Yearly Net Return</div>
-                      </div>
-                      <div style={styles.performanceTabMetricCard}>
-                        <div style={styles.performanceMetricValue}>1.4%</div>
-                        <div style={styles.performanceMetricLabel}>Average Monthly Net Return</div>
-                      </div>
-                      <div style={styles.performanceTabMetricCard}>
-                        <div style={styles.performanceMetricValue}>76%</div>
-                        <div style={styles.performanceMetricLabel}>Positive Months</div>
-                      </div>
-                      <div style={styles.performanceTabMetricCard}>
-                        <div style={styles.performanceMetricValue}>-0.1</div>
-                        <div style={styles.performanceMetricLabel}>BTC Correlation</div>
-                      </div>
+                  <div style={styles.performanceMetrics}>
+                    <div style={styles.performanceTabMetricCard}>
+                      <div style={styles.performanceMetricValue}>20%</div>
+                      <div style={styles.performanceMetricLabel}>Average Yearly Net Return</div>
                     </div>
-                    
-                    {/* Performance Chart */}
-                    <div style={styles.chartContainer}>
-                      <div style={styles.chartTitle}>Monthly Returns Distribution</div>
-                      <ResponsiveContainer width="100%" height={250}>
-                        <BarChart data={[
-                          { month: 'Jan', return: 1.2 },
-                          { month: 'Feb', return: 2.1 },
-                          { month: 'Mar', return: 0.8 },
-                          { month: 'Apr', return: 1.9 },
-                          { month: 'May', return: 1.1 },
-                          { month: 'Jun', return: 1.7 },
-                          { month: 'Jul', return: 1.3 },
-                          { month: 'Aug', return: 0.9 },
-                          { month: 'Sep', return: 2.2 },
-                          { month: 'Oct', return: 1.5 },
-                          { month: 'Nov', return: 1.8 },
-                          { month: 'Dec', return: 1.4 }
-                        ]}>
-                          <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis dataKey="month" />
-                          <YAxis />
-                          <Tooltip formatter={(value) => [`${value}%`, 'Monthly Return']} />
-                          <Bar dataKey="return" fill="#10b981" />
-                        </BarChart>
-                      </ResponsiveContainer>
+                    <div style={styles.performanceTabMetricCard}>
+                      <div style={styles.performanceMetricValue}>1.4%</div>
+                      <div style={styles.performanceMetricLabel}>Average Monthly Net Return</div>
+                    </div>
+                    <div style={styles.performanceTabMetricCard}>
+                      <div style={styles.performanceMetricValue}>76%</div>
+                      <div style={styles.performanceMetricLabel}>Positive Months</div>
+                    </div>
+                    <div style={styles.performanceTabMetricCard}>
+                      <div style={styles.performanceMetricValue}>-0.1</div>
+                      <div style={styles.performanceMetricLabel}>BTC Correlation</div>
                     </div>
                   </div>
                   
-                  <div style={styles.auditedNote}>
-                    <strong>Audited Track Record:</strong> 7 years
-                  </div>
-                  <p style={styles.fundDetailText}>
-                    This fund has served as a benchmark and foundation for developing the Multi-Strat fund approach.
-                  </p>
-                </div>
+                
+                </div>Diversified, market-neutral, Algo-trading strategies
               </div>
             )}
 
@@ -2509,89 +2186,14 @@ export default function VaultDetailPage() {
           </div>
         </section>
 
-        {/* Two Column Layout Starts */}
-        <div style={styles.twoColumnLayout}>
-          {/* Left Column */}
-          <div>
-            {/* This column is now reserved for future content */}
-          </div>
-
-          {/* Right Column */}
-          <div>
-
-
-            {/* Ongoing Transactions Section */}
-            {isConnected && walletAddress && vaultDetail && (() => {
-              const vaultTransactions = getVaultTransactions(vaultId, walletAddress);
-              const pendingTransactions = vaultTransactions.filter(transaction => 
-                transaction.status === 'pending' || 
-                transaction.status === 'processing' || 
-                (transaction.status === 'approved' && Date.now() - transaction.timestamp < 300000) || // Show approved for 5 minutes
-                (transaction.status === 'rejected' && Date.now() - transaction.timestamp < 300000)   // Show rejected for 5 minutes
-              );
-              
-              return pendingTransactions.length > 0 ? (
-                <section style={styles.section}>
-                  <div style={styles.sectionTitle}>
-                    Ongoing Transactions
-                  </div>
-                  <div>
-                    {pendingTransactions.map(transaction => (
-                      <OngoingTransactionCard 
-                        key={transaction.id}
-                        transaction={transaction}
-                        onRemove={removeTransaction}
-                      />
-                    ))}
-                  </div>
-                </section>
-              ) : null;
-            })()}
-          </div>
-        </div>
 
         {/* Call to Action Section */}
         <section style={styles.ctaSection}>
           <div style={styles.ctaContent}>
             <h2 style={styles.ctaTitle}>Interested in This Vault?</h2>
-            <p style={styles.ctaSubtitle}>
-              Join institutional investors and high-net-worth individuals who trust our proven strategies for Bitcoin yield generation. 
-              Our team of experienced portfolio managers delivers consistent performance while maintaining strict risk controls.
-            </p>
-            
-            <div style={styles.ctaFeatures}>
-              <div style={styles.ctaFeature}>
-                <div style={styles.ctaFeatureIcon}>🏦</div>
-                <div style={styles.ctaFeatureContent}>
-                  <h4 style={styles.ctaFeatureTitle}>Professional Portfolio Management</h4>
-                  <p style={styles.ctaFeatureText}>Experienced team with proven track record in digital asset management and institutional trading strategies.</p>
-                </div>
-              </div>
-              
-              <div style={styles.ctaFeature}>
-                <div style={styles.ctaFeatureIcon}>🔒</div>
-                <div style={styles.ctaFeatureContent}>
-                  <h4 style={styles.ctaFeatureTitle}>Institutional-Grade Security</h4>
-                  <p style={styles.ctaFeatureText}>Multi-signature custody solutions with insurance coverage up to $500M through leading enterprise providers.</p>
-                </div>
-              </div>
-              
-              <div style={styles.ctaFeature}>
-                <div style={styles.ctaFeatureIcon}>📈</div>
-                <div style={styles.ctaFeatureContent}>
-                  <h4 style={styles.ctaFeatureTitle}>Transparent Reporting</h4>
-                  <p style={styles.ctaFeatureText}>Regular performance updates, detailed monthly statements, and full transparency on all investment activities.</p>
-                </div>
-              </div>
-              
-              <div style={styles.ctaFeature}>
-                <div style={styles.ctaFeatureIcon}>⚡</div>
-                <div style={styles.ctaFeatureContent}>
-                  <h4 style={styles.ctaFeatureTitle}>Proven Strategy</h4>
-                  <p style={styles.ctaFeatureText}>Consistent returns through market cycles with advanced risk management and systematic rebalancing protocols.</p>
-                </div>
-              </div>
-            </div>
+            {/* Subtitle copy removed */}
+      
+       
             
             <div style={styles.ctaAction}>
               <button 
@@ -2611,7 +2213,7 @@ export default function VaultDetailPage() {
                 Contact Our Investment Team
               </button>
               <p style={styles.ctaDisclaimer}>
-                Schedule a consultation to discuss your investment goals and learn how this vault fits into your portfolio strategy.
+                Schedule a consultation to discuss your investment goals and see how this vault fits into your portfolio strategy.
               </p>
             </div>
           </div>
@@ -2623,127 +2225,6 @@ export default function VaultDetailPage() {
         isOpen={isContactModalOpen}
         onClose={() => setIsContactModalOpen(false)}
       />
-
-      {/* Deposit Modal */}
-      {showDepositModal && (
-        <div style={styles.modalOverlay} onClick={() => setShowDepositModal(false)}>
-          <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
-            <div style={styles.modalTitle}>Deposit cbBTC</div>
-            <form onSubmit={handleDeposit}>
-              <div style={styles.formGroup}>
-                <label style={styles.formLabel}>Amount (cbBTC)</label>
-                <input
-                  type="number"
-                  step="0.001"
-                  min="0.001"
-                  placeholder="0.001"
-                  value={depositAmount}
-                  onChange={(e) => setDepositAmount(e.target.value)}
-                  style={styles.formInput}
-                  disabled={isLoading}
-                  required
-                />
-                <div style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '0.5rem' }}>
-                  Minimum: {vaultDetail?.minimumDeposit || '0.001 cbBTC'}
-                </div>
-              </div>
-              <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
-                <button
-                  type="button"
-                  onClick={() => setShowDepositModal(false)}
-                  style={{
-                    flex: 1,
-                    padding: '0.75rem',
-                    backgroundColor: '#f3f4f6',
-                    color: '#111827',
-                    border: 'none',
-                    borderRadius: '0.5rem',
-                    cursor: 'pointer'
-                  }}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isLoading}
-                  style={{
-                    flex: 1,
-                    padding: '0.75rem',
-                    backgroundColor: isLoading ? '#9ca3af' : '#10b981',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '0.5rem',
-                    cursor: isLoading ? 'not-allowed' : 'pointer'
-                  }}
-                >
-                  {isLoading ? 'Processing...' : 'Deposit'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Withdraw Modal */}
-      {showWithdrawModal && (
-        <div style={styles.modalOverlay} onClick={() => setShowWithdrawModal(false)}>
-          <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
-            <div style={styles.modalTitle}>Withdraw cbBTC</div>
-            <form onSubmit={handleWithdraw}>
-              <div style={styles.formGroup}>
-                <label style={styles.formLabel}>Amount (cbBTC)</label>
-                <input
-                  type="number"
-                  step="0.001"
-                  min="0.001"
-                  max={userPosition.cbBTCBalance}
-                  placeholder="0.001"
-                  value={withdrawAmount}
-                  onChange={(e) => setWithdrawAmount(e.target.value)}
-                  style={styles.formInput}
-                  disabled={isLoading}
-                  required
-                />
-                <div style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '0.5rem' }}>
-                  Available: {userPosition.cbBTCBalance} cbBTC
-                </div>
-              </div>
-              <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
-                <button
-                  type="button"
-                  onClick={() => setShowWithdrawModal(false)}
-                  style={{
-                    flex: 1,
-                    padding: '0.75rem',
-                    backgroundColor: '#f3f4f6',
-                    color: '#111827',
-                    border: 'none',
-                    borderRadius: '0.5rem',
-                    cursor: 'pointer'
-                  }}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isLoading}
-                  style={{
-                    flex: 1,
-                    padding: '0.75rem',
-                    backgroundColor: isLoading ? '#9ca3af' : '#ef4444',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '0.5rem',
-                    cursor: isLoading ? 'not-allowed' : 'pointer'
-                  }}
-                >
-                  {isLoading ? 'Processing...' : 'Withdraw'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 } 

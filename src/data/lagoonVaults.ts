@@ -150,8 +150,8 @@ export const sampleLagoonVaults: LagoonVault[] = [
     chainId: 1, // Ethereum mainnet
     name: "Atitlan Bitcoin Multi-Strat Fund",
     logoUrl: "/lagoon-logo.svg",
-    shortDescription: "Advanced DeFi yield strategies with institutional-grade risk management",
-    description: "A sophisticated vault implementing multi-layered yield generation strategies across DeFi protocols. The vault employs dynamic allocation algorithms, automated rebalancing, and comprehensive risk management to optimize returns while maintaining capital preservation focus.",
+    shortDescription: "BTC-denominated, market-neutral yield strategies with low correlation to BTC price",
+    description: "A diversified Bitcoin yield fund employing market-neutral strategies including short-term directional trading, arbitrage, basis trading, and options. Designed to generate consistent BTC-denominated returns while maintaining low correlation to Bitcoin price movements (correlation cap at 0.4).",
     averageProcessing: "7 days",
     referralShare: "10%",
     assetManager: {
@@ -178,22 +178,22 @@ export const sampleLagoonVaults: LagoonVault[] = [
     ],
     additionalAprs: [
       {
-        asset: "ETH",
-        estimatedRewardApr: "5.2%",
-        estimatedReward30dApr: "4.8%"
+        asset: "BTC",
+        estimatedRewardApr: "12%+",
+        estimatedReward30dApr: "12%+"
       }
     ],
     visible: true,
     
-    // Risk and fee information (set by us)
+    // Risk and fee information (updated to match new specifications)
     riskLevel: "Low",
-    maxDrawdown: "2.8%",
+    maxDrawdown: "2%",
     lockPeriod: "7 days",
     breakFee: "0.5%",
     minimumDeposit: "0.01 ETH",
     
-    // These would be fetched from blockchain via Lagoon's API
-    apr: 8.7, // Realistic DeFi yield
+    // Updated APR and performance metrics
+    apr: 12, // 12%+ annual net return target (in BTC)
     tvl: 1200000, // $1.2M
     totalAssets: "342857142857142857142", // ~343 ETH
     totalSupply: "340000000000000000000",

@@ -29,12 +29,22 @@ export default function ContactForm({ isOpen, onClose }: ContactFormProps) {
     setIsSubmitting(true);
 
     try {
-      // TODO: Replace with actual form submission to your backend
-      console.log('Contact form submitted:', formData);
-      
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
+      // Send form data to API endpoint
+      const response = await fetch('/api/send-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to send email');
+      }
+
+      console.log('Contact form submitted successfully:', result);
       setIsSubmitted(true);
       
       // Reset form after 3 seconds and close modal
@@ -53,7 +63,7 @@ export default function ContactForm({ isOpen, onClose }: ContactFormProps) {
       
     } catch (error) {
       console.error('Error submitting form:', error);
-      alert('Failed to submit form. Please try again.');
+      alert(`Failed to submit form: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`);
     } finally {
       setIsSubmitting(false);
     }

@@ -3,22 +3,13 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Navbar from '@/components/Navbar';
-import { useWallet } from '@/context/WalletContext';
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { isConnected, kycStatus, walletAddress } = useWallet();
 
-  useEffect(() => {
-    if (!isConnected) {
-      router.push('/');
-      return;
-    }
-  }, [isConnected, router]);
-
-  if (!isConnected) {
-    return null;
-  }
+  // Mock data for demonstration
+  const mockWalletAddress = "0x1234...5678";
+  const mockKycStatus = "verified";
 
   const styles = {
     container: {
@@ -96,7 +87,7 @@ export default function DashboardPage() {
     },
     primaryButton: {
       padding: '1rem 2rem',
-      backgroundColor: '#111827',
+      backgroundColor: '#f97316',
       color: 'white',
       borderRadius: '0.5rem',
       textDecoration: 'none',
@@ -137,7 +128,7 @@ export default function DashboardPage() {
           <div style={styles.statusItem}>
             <span style={styles.statusLabel}>Wallet Address</span>
             <span style={styles.statusValue}>
-              {walletAddress.slice(0, 10)}...{walletAddress.slice(-8)}
+              {mockWalletAddress}
             </span>
           </div>
           
@@ -151,7 +142,7 @@ export default function DashboardPage() {
           
           <div style={{ ...styles.statusItem, borderBottom: 'none' }}>
             <span style={styles.statusLabel}>Available Actions</span>
-            <span style={styles.statusValue}>Deposit & Withdraw</span>
+            <span style={styles.statusValue}>Browse & Contact</span>
           </div>
         </div>
 
@@ -159,14 +150,26 @@ export default function DashboardPage() {
           <button 
             style={styles.primaryButton}
             onClick={() => router.push('/')}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = '#ea580c';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = '#f97316';
+            }}
           >
             Browse Vaults
           </button>
           <button 
             style={styles.secondaryButton}
-            onClick={() => router.push('/settings')}
+            onClick={() => router.push('/')}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = '#f3f4f6';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'white';
+            }}
           >
-            Account Settings
+            Contact Us
           </button>
         </div>
       </main>

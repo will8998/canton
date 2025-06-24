@@ -76,31 +76,15 @@ export default function Footer() {
     <footer style={styles.footer}>
       <div style={styles.content}>
         <div style={styles.left}>
-          <Link href="/privacy-policy" style={styles.link}>
-            Privacy Policy
-          </Link>
-          <Link href="/terms-of-service" style={styles.link}>
-            Terms of Service
+          <Link href="/disclosure" style={styles.link}>
+            Disclosure
           </Link>
         </div>
         <div style={styles.copyright}>
           © 2025 BitSafe. All rights reserved.
         </div>
         <div style={styles.right}>
-          <Link href="https://t.me/bitsafe" target="_blank" style={styles.link}>
-            <svg 
-              width="24" 
-              height="24" 
-              viewBox="0 0 24 24" 
-              fill="currentColor"
-              style={styles.socialIcon}
-              onMouseEnter={(e) => e.currentTarget.style.opacity = '0.7'}
-              onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
-            >
-              <path d="M20.665 3.717l-17.73 6.837c-1.21.486-1.203 1.161-.222 1.462l4.552 1.42 10.532-6.645c.498-.303.953-.14.579.192l-8.533 7.701h-.002l.002.001-.314 4.692c.46 0 .663-.211.921-.46l2.211-2.15 4.599 3.397c.848.467 1.457.227 1.668-.785L24 5.58c.321-1.336-.541-1.836-1.335-1.863z"/>
-            </svg>
-          </Link>
-          <Link href="https://twitter.com/bitsafe" target="_blank" style={styles.link}>
+          <Link href="https://twitter.com/binance_finance" target="_blank" style={styles.link}>
             <svg 
               width="24" 
               height="24" 
