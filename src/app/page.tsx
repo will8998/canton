@@ -104,7 +104,105 @@ export default function Home() {
             />
           ))}
           
-          {/* Coming Soon Card */}
+          {/* Coming Soon Vault Cards */}
+          {[
+            { name: "Algoz Bitcoin Multi-Strategy Fund", provider: "Algoz" },
+            { name: "NineBlocks Bitcoin Yield Fund", provider: "NineBlocks" },
+            { name: "XBTO Digital Alpha Fund", provider: "XBTO" },
+            { name: "Samara Bitcoin Strategy Fund", provider: "Samara" },
+            { name: "Amitis Group Bitcoin Fund", provider: "Amitis Group" }
+          ].map((fund, index) => (
+            <div 
+              key={index}
+              style={{
+                border: '2px dashed #d1d5db',
+                borderRadius: '0.75rem',
+                padding: '1.5rem',
+                backgroundColor: '#f9fafb',
+                opacity: 0.6,
+                position: 'relative' as const
+              }}
+            >
+              {/* Coming Soon Badge */}
+              <div style={{
+                position: 'absolute' as const,
+                top: '1rem',
+                right: '1rem',
+                backgroundColor: '#f97316',
+                color: 'white',
+                padding: '0.25rem 0.5rem',
+                borderRadius: '0.375rem',
+                fontSize: '0.75rem',
+                fontWeight: '600'
+              }}>
+                Coming Soon
+              </div>
+
+              {/* Title */}
+              <h2 style={{ 
+                fontSize: '1.5rem', 
+                fontWeight: 'bold', 
+                margin: '0 0 0.5rem 0',
+                color: '#9ca3af'
+              }}>
+                {fund.name}
+              </h2>
+
+              {/* Provider */}
+              <div style={{ 
+                fontSize: '1rem', 
+                color: '#9ca3af',
+                marginBottom: '2rem'
+              }}>
+                {fund.provider}
+              </div>
+
+              {/* Placeholder APR */}
+              <div style={{ marginBottom: '2rem' }}>
+                <div style={{ 
+                  fontSize: '2.5rem', 
+                  fontWeight: 'bold', 
+                  color: '#d1d5db',
+                  marginBottom: '0.25rem'
+                }}>
+                  TBA
+                </div>
+                <div style={{ 
+                  fontSize: '1rem', 
+                  color: '#9ca3af'
+                }}>
+                  Target APY
+                </div>
+              </div>
+
+              {/* Placeholder Max Drawdown */}
+              <div style={{ 
+                display: 'flex', 
+                justifyContent: 'space-between', 
+                alignItems: 'center',
+                marginBottom: '1.5rem'
+              }}>
+                <div>
+                  <span style={{ fontSize: '1rem', color: '#9ca3af' }}>Max Drawdown:</span>
+                </div>
+                <div>
+                  <span style={{ 
+                    fontSize: '1rem', 
+                    color: '#d1d5db',
+                    fontWeight: '600',
+                    backgroundColor: '#f3f4f6',
+                    padding: '0.25rem 0.5rem',
+                    borderRadius: '0.375rem',
+                    border: '1px solid #e5e7eb'
+                  }}>
+                    TBA
+                  </span>
+                </div>
+              </div>
+            </div>
+          ))}
+          
+          {/* General Coming Soon Card */}
           <div style={{
             backgroundColor: '#f3f4f6',
             borderRadius: '1rem',
